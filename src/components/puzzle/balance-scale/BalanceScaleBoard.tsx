@@ -11,7 +11,6 @@ import {
   type BalanceScaleState,
 } from '@/engines/balance-scale/engine';
 import { useAudio } from '@/hooks/useAudio';
-import { Scale, Send, RotateCcw, RefreshCw } from 'lucide-react';
 
 interface BalanceScaleBoardProps {
   difficulty: number;
@@ -19,6 +18,167 @@ interface BalanceScaleBoardProps {
   onComplete: (steps: number, optimal: number) => void;
   onFail?: (reason: string) => void;
 }
+
+/* ── SVG sub-components ─────────────────────────────────────── */
+
+function GoldCoin({ index, selected, side, onClick }: {
+  index: number; selected: boolean; side?: 'left' | 'right' | 'answer'; onClick: () => void;
+}) {
+  const highlight = selected
+    ? side === 'left' ? '#3b82f6'
+    : side === 'right' ? '#f97316'
+    : side === 'answer' ? '#818cf8'
+    : '#d97706'
+    : undefined;
+
+  return (
+    <motion.g
+      onClick={onClick}
+      whileHover={{ scale: 1.12, y: -3 }}
+      whileTap={{ scale: 0.9 }}
+      style={{ cursor: 'pointer' }}
+    >
+      {/* Coin glow when selected */}
+      {selected && (
+        <motion.circle
+          cx="0" cy="0" r="28"
+          fill={highlight}
+          opacity="0.15"
+          animate={{ opacity: [0.1, 0.2, 0.1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+      )}
+
+      {/* Coin edge (thickness illusion) */}
+      <ellipse cx="0" cy="3" rx="20" ry="20" fill="#92400e" />
+
+      {/* Coin face */}
+      <circle cx="0" cy="0" r="20"
+        fill="url(#goldCoinFill)"
+        stroke={selected ? highlight : '#b45309'}
+        strokeWidth={selected ? 2.5 : 1.5}
+      />
+
+      {/* Inner ring */}
+      <circle cx="0" cy="0" r="15" fill="none" stroke="#b45309" strokeWidth="0.8" opacity="0.5" />
+
+      {/* Embossed number */}
+      <text x="0" y="5" textAnchor="middle" fontSize="13" fontWeight="bold"
+        fill="#78350f" opacity="0.9"
+      >
+        {index + 1}
+      </text>
+
+      {/* Shine highlight */}
+      <ellipse cx="-6" cy="-7" rx="5" ry="7" fill="white" opacity="0.18"
+        transform="rotate(-25, -6, -7)" />
+    </motion.g>
+  );
+}
+
+function AlchemyScale({ tiltAngle, leftCoins, rightCoins }: {
+  tiltAngle: number; leftCoins: number[]; rightCoins: number[];
+}) {
+  const beamY = 135;
+  const pillarBottom = 320;
+
+  return (
+    <g>
+      {/* Ornate base */}
+      <path d="M340,320 Q370,330 400,335 Q430,330 460,320 L470,340 Q435,350 400,355 Q365,350 330,340 Z"
+        fill="url(#scaleBeam)" stroke="#92400e" strokeWidth="1" />
+      <ellipse cx="400" cy="345" rx="50" ry="8" fill="#92400e" opacity="0.4" />
+
+      {/* Center pillar with ornament */}
+      <rect x="394" y={beamY + 15} width="12" height={pillarBottom - beamY - 15}
+        fill="url(#scaleBeam)" rx="2" />
+      {/* Pillar decorative bands */}
+      <rect x="391" y={beamY + 50} width="18" height="6" rx="3" fill="#d97706" />
+      <rect x="391" y={beamY + 100} width="18" height="6" rx="3" fill="#d97706" />
+
+      {/* Top ornament */}
+      <circle cx="400" cy={beamY + 8} r="10" fill="#d97706" stroke="#92400e" strokeWidth="1.5" />
+      <circle cx="400" cy={beamY + 8} r="5" fill="#fbbf24" opacity="0.4" />
+
+      {/* Beam */}
+      <motion.g
+        animate={{ rotate: tiltAngle }}
+        transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+        style={{ originX: '400px', originY: `${beamY + 8}px` }}
+      >
+        <rect x="180" y={beamY} width="440" height="8" rx="4"
+          fill="url(#scaleBeam)" stroke="#92400e" strokeWidth="0.5" />
+
+        {/* Chain links - left */}
+        {[0, 1, 2, 3].map(i => (
+          <g key={`lchain-${i}`}>
+            <ellipse cx="210" cy={beamY + 15 + i * 18} rx="4" ry="7"
+              fill="none" stroke="#d97706" strokeWidth="1.5" />
+          </g>
+        ))}
+
+        {/* Chain links - right */}
+        {[0, 1, 2, 3].map(i => (
+          <g key={`rchain-${i}`}>
+            <ellipse cx="590" cy={beamY + 15 + i * 18} rx="4" ry="7"
+              fill="none" stroke="#d97706" strokeWidth="1.5" />
+          </g>
+        ))}
+
+        {/* Left pan */}
+        <g>
+          <ellipse cx="210" cy={beamY + 90} rx="75" ry="14"
+            fill="url(#panGrad)" stroke="#4b5563" strokeWidth="1" />
+          {/* Pan rim highlight */}
+          <ellipse cx="210" cy={beamY + 87} rx="70" ry="10"
+            fill="none" stroke="#6b7280" strokeWidth="0.5" opacity="0.4" />
+
+          {/* Coins in left pan */}
+          {leftCoins.map((coinIdx, i) => {
+            const col = i % 4;
+            const row = Math.floor(i / 4);
+            const cx = 180 + col * 20 - (leftCoins.length > 4 ? 0 : (4 - leftCoins.length) * 10);
+            const cy = beamY + 80 - row * 15;
+            return (
+              <g key={`lcoin-${coinIdx}`} transform={`translate(${cx}, ${cy}) scale(0.55)`}>
+                <circle r="18" fill="url(#goldCoinFill)" stroke="#b45309" strokeWidth="1.5" />
+                <text textAnchor="middle" y="5" fontSize="12" fontWeight="bold" fill="#78350f">
+                  {coinIdx + 1}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+
+        {/* Right pan */}
+        <g>
+          <ellipse cx="590" cy={beamY + 90} rx="75" ry="14"
+            fill="url(#panGrad)" stroke="#4b5563" strokeWidth="1" />
+          <ellipse cx="590" cy={beamY + 87} rx="70" ry="10"
+            fill="none" stroke="#6b7280" strokeWidth="0.5" opacity="0.4" />
+
+          {/* Coins in right pan */}
+          {rightCoins.map((coinIdx, i) => {
+            const col = i % 4;
+            const row = Math.floor(i / 4);
+            const cx = 560 + col * 20 - (rightCoins.length > 4 ? 0 : (4 - rightCoins.length) * 10);
+            const cy = beamY + 80 - row * 15;
+            return (
+              <g key={`rcoin-${coinIdx}`} transform={`translate(${cx}, ${cy}) scale(0.55)`}>
+                <circle r="18" fill="url(#goldCoinFill)" stroke="#b45309" strokeWidth="1.5" />
+                <text textAnchor="middle" y="5" fontSize="12" fontWeight="bold" fill="#78350f">
+                  {coinIdx + 1}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </motion.g>
+    </g>
+  );
+}
+
+/* ── Main component ─────────────────────────────────────────── */
 
 export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: BalanceScaleBoardProps) {
   const puzzle = useMemo(() => generateBalanceScale(difficulty, seed), [difficulty, seed]);
@@ -114,6 +274,18 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
   const lastResult = state.weighings.length > 0 ? state.weighings[state.weighings.length - 1] : null;
   const remainingWeighings = puzzle.maxWeighings - state.steps;
 
+  const tiltAngle = lastResult
+    ? lastResult.result === 'left-heavy' ? 6
+    : lastResult.result === 'right-heavy' ? -6
+    : 0
+    : 0;
+
+  /* Layout for coin grid in SVG */
+  const coinsPerRow = Math.min(puzzle.coinCount, 8);
+  const coinSpacing = Math.min(56, 640 / coinsPerRow);
+  const coinRows = Math.ceil(puzzle.coinCount / coinsPerRow);
+  const coinGridStartX = (800 - (coinsPerRow - 1) * coinSpacing) / 2;
+
   return (
     <div className="space-y-4">
       {/* Error toast */}
@@ -143,7 +315,10 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
       {/* Weighing status */}
       <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Scale className="w-5 h-5 text-indigo-400" />
+          <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="12" y1="6" x2="12" y2="20" />
+            <path d="M6,6 L3,14 Q6,17 9,14 Z" /><path d="M18,6 L15,14 Q18,17 21,14 Z" />
+          </svg>
           <span className="text-sm text-slate-300">
             남은 측정: <strong className={`text-lg tabular-nums ${remainingWeighings <= 1 ? 'text-red-400' : 'text-slate-100'}`}>{remainingWeighings}</strong> / {puzzle.maxWeighings}
           </span>
@@ -155,6 +330,112 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
           }
         </span>
       </div>
+
+      {/* ── Alchemist Lab Scale SVG ── */}
+      <svg viewBox="0 0 800 380" className="w-full rounded-2xl overflow-hidden" style={{ maxHeight: '45vh' }}>
+        <defs>
+          <linearGradient id="scaleBeam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#92400e" />
+            <stop offset="50%" stopColor="#d97706" />
+            <stop offset="100%" stopColor="#92400e" />
+          </linearGradient>
+
+          <radialGradient id="panGrad" cx="0.4" cy="0.3">
+            <stop offset="0%" stopColor="#4b5563" />
+            <stop offset="100%" stopColor="#1f2937" />
+          </radialGradient>
+
+          <radialGradient id="goldCoinFill" cx="0.35" cy="0.35">
+            <stop offset="0%" stopColor="#fcd34d" />
+            <stop offset="60%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#b45309" />
+          </radialGradient>
+
+          {/* Potion bottle gradient */}
+          <linearGradient id="potionGreen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#059669" stopOpacity="0.6" />
+          </linearGradient>
+          <linearGradient id="potionPurple" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.6" />
+          </linearGradient>
+          <linearGradient id="potionRed" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#fca5a5" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.6" />
+          </linearGradient>
+        </defs>
+
+        {/* Lab background */}
+        <rect width="800" height="380" fill="#1a1025" />
+
+        {/* Stone wall texture lines */}
+        <line x1="0" y1="60" x2="800" y2="60" stroke="#2d1f3d" strokeWidth="0.5" />
+        <line x1="0" y1="120" x2="800" y2="120" stroke="#2d1f3d" strokeWidth="0.5" />
+        <rect x="0" y="340" width="800" height="40" fill="#15101e" />
+
+        {/* Shelf */}
+        <rect x="20" y="50" width="160" height="8" fill="#3d2814" rx="2" />
+        <rect x="620" y="50" width="160" height="8" fill="#3d2814" rx="2" />
+
+        {/* Potion bottles on left shelf */}
+        <g transform="translate(50, 15)">
+          {/* Tall bottle */}
+          <rect x="-4" y="20" width="8" height="4" fill="#4b5563" rx="1" />
+          <rect x="-6" y="24" width="12" height="20" rx="3" fill="url(#potionGreen)" />
+          <motion.ellipse cx="0" cy="30" rx="4" ry="3" fill="#6ee7b7" opacity="0.3"
+            animate={{ opacity: [0.2, 0.4, 0.2] }}
+            transition={{ duration: 3, repeat: Infinity }} />
+        </g>
+        <g transform="translate(90, 20)">
+          {/* Round flask */}
+          <rect x="-3" y="14" width="6" height="6" fill="#4b5563" rx="1" />
+          <circle cx="0" cy="30" r="10" fill="url(#potionPurple)" />
+          <motion.circle cx="-3" cy="27" r="2" fill="#c4b5fd" opacity="0.3"
+            animate={{ cy: [27, 24, 27] }}
+            transition={{ duration: 2, repeat: Infinity }} />
+        </g>
+        <g transform="translate(140, 18)">
+          <rect x="-3" y="18" width="6" height="4" fill="#4b5563" rx="1" />
+          <rect x="-5" y="22" width="10" height="16" rx="2" fill="url(#potionRed)" />
+        </g>
+
+        {/* Potion bottles on right shelf */}
+        <g transform="translate(660, 20)">
+          <rect x="-3" y="14" width="6" height="6" fill="#4b5563" rx="1" />
+          <circle cx="0" cy="30" r="10" fill="url(#potionGreen)" />
+        </g>
+        <g transform="translate(720, 15)">
+          <rect x="-4" y="20" width="8" height="4" fill="#4b5563" rx="1" />
+          <rect x="-6" y="24" width="12" height="20" rx="3" fill="url(#potionPurple)" />
+        </g>
+
+        {/* Mystical particles */}
+        {[
+          { cx: 50, cy: 150, delay: 0 },
+          { cx: 750, cy: 200, delay: 1.5 },
+          { cx: 100, cy: 280, delay: 3 },
+          { cx: 680, cy: 300, delay: 0.5 },
+        ].map((p, i) => (
+          <motion.circle
+            key={`particle-${i}`}
+            cx={p.cx} cy={p.cy} r="1.5"
+            fill="#a78bfa"
+            animate={{ opacity: [0, 0.5, 0], cy: [p.cy, p.cy - 30, p.cy - 60] }}
+            transition={{ duration: 4, repeat: Infinity, delay: p.delay }}
+          />
+        ))}
+
+        {/* The scale */}
+        <AlchemyScale tiltAngle={tiltAngle} leftCoins={leftPan} rightCoins={rightPan} />
+
+        {/* Left pan label */}
+        <text x="210" y="375" textAnchor="middle" fontSize="11" fontWeight="bold"
+          fill="#60a5fa" opacity="0.7">왼쪽</text>
+        {/* Right pan label */}
+        <text x="590" y="375" textAnchor="middle" fontSize="11" fontWeight="bold"
+          fill="#fb923c" opacity="0.7">오른쪽</text>
+      </svg>
 
       {/* Mode toggle */}
       <div className="flex gap-2 justify-center">
@@ -184,109 +465,59 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
 
       {mode === 'weigh' ? (
         <>
-          {/* Scale visualization */}
-          <div className="flex items-end justify-center gap-4 sm:gap-6 py-4">
-            {/* Left pan */}
-            <div className="text-center flex-1 max-w-[200px]">
-              <div className="text-[11px] font-bold text-blue-400/70 mb-2 uppercase tracking-widest">왼쪽</div>
-              <motion.div
-                animate={{ y: lastResult?.result === 'left-heavy' ? 12 : lastResult?.result === 'right-heavy' ? -12 : 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                className="bg-blue-500/10 backdrop-blur-md border border-blue-400/20 rounded-2xl p-3 min-h-[70px] flex flex-wrap gap-1.5 justify-center items-center"
-              >
-                {leftPan.map((c) => (
-                  <CoinChip key={c} index={c} onClick={() => toggleCoin(c, 'left')} side="left" />
-                ))}
-                {leftPan.length === 0 && (
-                  <span className="text-xs text-slate-600">아래에서 동전 선택</span>
-                )}
-              </motion.div>
-            </div>
-
-            {/* Scale icon */}
-            <motion.div
-              animate={{
-                rotate: lastResult?.result === 'left-heavy' ? 8 : lastResult?.result === 'right-heavy' ? -8 : 0,
-              }}
-              transition={{ type: 'spring', stiffness: 150, damping: 12 }}
-              className="text-5xl mb-4 drop-shadow-lg shrink-0"
-            >
-              <Scale className="w-12 h-12 text-indigo-400" />
-            </motion.div>
-
-            {/* Right pan */}
-            <div className="text-center flex-1 max-w-[200px]">
-              <div className="text-[11px] font-bold text-orange-400/70 mb-2 uppercase tracking-widest">오른쪽</div>
-              <motion.div
-                animate={{ y: lastResult?.result === 'right-heavy' ? 12 : lastResult?.result === 'left-heavy' ? -12 : 0 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                className="bg-orange-500/10 backdrop-blur-md border border-orange-400/20 rounded-2xl p-3 min-h-[70px] flex flex-wrap gap-1.5 justify-center items-center"
-              >
-                {rightPan.map((c) => (
-                  <CoinChip key={c} index={c} onClick={() => toggleCoin(c, 'right')} side="right" />
-                ))}
-                {rightPan.length === 0 && (
-                  <span className="text-xs text-slate-600">아래에서 동전 선택</span>
-                )}
-              </motion.div>
-            </div>
-          </div>
-
           {/* Coins grid */}
           <div className="text-center">
             <div className="text-[11px] font-bold text-slate-500 uppercase mb-3 tracking-widest">
               동전 선택 (탭: 왼쪽 / 길게 누르기: 오른쪽)
             </div>
-            <div className="flex flex-wrap gap-2 justify-center">
+
+            {/* SVG coin grid */}
+            <svg viewBox={`0 0 800 ${coinRows * 56 + 10}`} className="w-full" style={{ maxHeight: '20vh' }}>
+              <defs>
+                <radialGradient id="goldCoinGrid" cx="0.35" cy="0.35">
+                  <stop offset="0%" stopColor="#fcd34d" />
+                  <stop offset="60%" stopColor="#f59e0b" />
+                  <stop offset="100%" stopColor="#b45309" />
+                </radialGradient>
+              </defs>
               {Array.from({ length: puzzle.coinCount }, (_, i) => {
+                const row = Math.floor(i / coinsPerRow);
+                const col = i % coinsPerRow;
+                const itemsInRow = Math.min(coinsPerRow, puzzle.coinCount - row * coinsPerRow);
+                const rowStartX = (800 - (itemsInRow - 1) * coinSpacing) / 2;
+                const cx = rowStartX + col * coinSpacing;
+                const cy = 28 + row * 56;
                 const inLeft = leftPan.includes(i);
                 const inRight = rightPan.includes(i);
                 return (
-                  <motion.button
-                    key={i}
-                    whileTap={{ scale: 0.9 }}
-                    whileHover={{ scale: 1.08, y: -2 }}
-                    onClick={() => {
-                      if (inLeft) {
-                        toggleCoin(i, 'left'); // remove from left
-                      } else if (inRight) {
-                        toggleCoin(i, 'right'); // remove from right
-                      } else {
-                        toggleCoin(i, 'left'); // add to left by default
-                      }
-                    }}
-                    onContextMenu={(e) => { e.preventDefault(); toggleCoin(i, 'right'); }}
-                    className={`w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-200 ${
-                      inLeft
-                        ? 'bg-blue-500/20 border-blue-400/60 text-blue-400 shadow-md shadow-blue-500/15'
-                        : inRight
-                        ? 'bg-orange-500/20 border-orange-400/60 text-orange-400 shadow-md shadow-orange-500/15'
-                        : 'bg-gradient-to-b from-amber-600 to-amber-800 border-amber-500/40 text-amber-200 hover:border-blue-400/40 cursor-pointer shadow-lg shadow-black/10'
-                    }`}
-                    title={`동전 ${i + 1}`}
-                  >
-                    {i + 1}
-                  </motion.button>
+                  <g key={i} transform={`translate(${cx}, ${cy})`}>
+                    <GoldCoin
+                      index={i}
+                      selected={inLeft || inRight}
+                      side={inLeft ? 'left' : inRight ? 'right' : undefined}
+                      onClick={() => {
+                        if (inLeft) {
+                          toggleCoin(i, 'left');
+                        } else if (inRight) {
+                          toggleCoin(i, 'right');
+                        } else {
+                          toggleCoin(i, 'left');
+                        }
+                      }}
+                    />
+                    {/* Right-click area for mobile (context menu) */}
+                    <rect x={-22} y={-22} width={44} height={44} fill="transparent"
+                      onContextMenu={(e) => { e.preventDefault(); toggleCoin(i, 'right'); }}
+                    />
+                  </g>
                 );
               })}
-            </div>
-            {/* Quick side buttons for mobile */}
-            <div className="flex gap-2 justify-center mt-3">
-              <button
-                onClick={() => {
-                  // Move all unassigned from left to right or swap
-                  const unassigned = Array.from({ length: puzzle.coinCount }, (_, i) => i)
-                    .filter(i => !leftPan.includes(i) && !rightPan.includes(i));
-                  if (unassigned.length > 0) {
-                    // No-op, just show hint
-                  }
-                }}
-                className="text-xs text-slate-500 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5"
-                title="선택된 동전을 오른쪽으로 이동"
-                disabled
-              >
+            </svg>
+
+            <div className="flex gap-2 justify-center mt-2">
+              <span className="text-xs text-slate-500 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
                 좌클릭 = 왼쪽 | 우클릭 = 오른쪽
-              </button>
+              </span>
             </div>
           </div>
 
@@ -310,28 +541,40 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
         /* Guess mode */
         <div className="bg-indigo-500/10 border border-indigo-400/20 rounded-2xl p-5 backdrop-blur-md space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <Send className="w-4 h-4 text-indigo-400" />
+            <svg className="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22,2 15,22 11,13 2,9" />
+            </svg>
             <span className="text-sm font-bold text-indigo-400">가짜 동전 지목</span>
           </div>
 
-          {/* Coin selection for answer */}
-          <div className="flex flex-wrap gap-2 justify-center">
-            {Array.from({ length: puzzle.coinCount }, (_, i) => (
-              <motion.button
-                key={i}
-                whileTap={{ scale: 0.9 }}
-                whileHover={{ scale: 1.08 }}
-                onClick={() => { playClick(); setAnswerCoin(i); }}
-                className={`w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-200 ${
-                  answerCoin === i
-                    ? 'bg-indigo-500/30 border-indigo-400/60 text-indigo-300 shadow-md shadow-indigo-500/20 ring-2 ring-indigo-400/40'
-                    : 'bg-gradient-to-b from-amber-600 to-amber-800 border-amber-500/40 text-amber-200 hover:border-indigo-400/40 cursor-pointer shadow-lg shadow-black/10'
-                }`}
-              >
-                {i + 1}
-              </motion.button>
-            ))}
-          </div>
+          {/* Coin selection for answer - SVG */}
+          <svg viewBox={`0 0 800 ${coinRows * 56 + 10}`} className="w-full" style={{ maxHeight: '20vh' }}>
+            <defs>
+              <radialGradient id="goldCoinAnswer" cx="0.35" cy="0.35">
+                <stop offset="0%" stopColor="#fcd34d" />
+                <stop offset="60%" stopColor="#f59e0b" />
+                <stop offset="100%" stopColor="#b45309" />
+              </radialGradient>
+            </defs>
+            {Array.from({ length: puzzle.coinCount }, (_, i) => {
+              const row = Math.floor(i / coinsPerRow);
+              const col = i % coinsPerRow;
+              const itemsInRow = Math.min(coinsPerRow, puzzle.coinCount - row * coinsPerRow);
+              const rowStartX = (800 - (itemsInRow - 1) * coinSpacing) / 2;
+              const cx = rowStartX + col * coinSpacing;
+              const cy = 28 + row * 56;
+              return (
+                <g key={i} transform={`translate(${cx}, ${cy})`}>
+                  <GoldCoin
+                    index={i}
+                    selected={answerCoin === i}
+                    side="answer"
+                    onClick={() => { playClick(); setAnswerCoin(i); }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
 
           {/* Weight direction */}
           {!puzzle.unknownDirection && puzzle.variant !== 'multiple-fake' ? (
@@ -410,12 +653,17 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
       <div className="flex flex-wrap gap-3 justify-center">
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0 || state.isComplete || state.isFailed}
           className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold disabled:opacity-30 hover:bg-white/10 transition-all border border-white/5">
-          <RotateCcw className="w-4 h-4" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
           되돌리기
         </motion.button>
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
           className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold hover:bg-white/10 transition-all border border-white/5">
-          <RefreshCw className="w-4 h-4" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
           처음부터
         </motion.button>
       </div>
@@ -431,21 +679,5 @@ export function BalanceScaleBoard({ difficulty, seed, onComplete, onFail }: Bala
         </div>
       </div>
     </div>
-  );
-}
-
-function CoinChip({ index, onClick, side }: { index: number; onClick: () => void; side: 'left' | 'right' }) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.9 }}
-      onClick={onClick}
-      className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-        side === 'left'
-          ? 'bg-blue-500/20 border border-blue-400/40 text-blue-400'
-          : 'bg-orange-500/20 border border-orange-400/40 text-orange-400'
-      }`}
-    >
-      {index + 1}
-    </motion.button>
   );
 }

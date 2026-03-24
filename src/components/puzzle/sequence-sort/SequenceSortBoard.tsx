@@ -11,7 +11,6 @@ import {
 } from '@/engines/sequence-sort/engine';
 import type { SortMove } from '@/engines/sequence-sort/generator';
 import { useAudio } from '@/hooks/useAudio';
-import { ArrowDownUp, RotateCcw, Repeat, RefreshCw } from 'lucide-react';
 
 interface SequenceSortBoardProps {
   difficulty: number;
@@ -20,33 +19,122 @@ interface SequenceSortBoardProps {
   onFail?: (reason: string) => void;
 }
 
-const ITEM_GRADIENTS = [
-  'from-red-500 to-red-700',
-  'from-orange-500 to-orange-700',
-  'from-amber-400 to-amber-600',
-  'from-emerald-500 to-emerald-700',
-  'from-blue-500 to-blue-700',
-  'from-indigo-500 to-indigo-700',
-  'from-purple-500 to-purple-700',
-  'from-pink-500 to-pink-700',
-  'from-teal-500 to-teal-700',
-  'from-cyan-500 to-cyan-700',
+/* ── Book color palettes for SVG ── */
+const BOOK_COLORS: { spine: string; spineLight: string; cover: string; text: string }[] = [
+  { spine: '#dc2626', spineLight: '#ef4444', cover: '#b91c1c', text: '#fecaca' },
+  { spine: '#ea580c', spineLight: '#f97316', cover: '#c2410c', text: '#fed7aa' },
+  { spine: '#d97706', spineLight: '#f59e0b', cover: '#b45309', text: '#fef3c7' },
+  { spine: '#16a34a', spineLight: '#22c55e', cover: '#15803d', text: '#bbf7d0' },
+  { spine: '#2563eb', spineLight: '#3b82f6', cover: '#1d4ed8', text: '#bfdbfe' },
+  { spine: '#4f46e5', spineLight: '#6366f1', cover: '#4338ca', text: '#c7d2fe' },
+  { spine: '#9333ea', spineLight: '#a855f7', cover: '#7e22ce', text: '#e9d5ff' },
+  { spine: '#db2777', spineLight: '#ec4899', cover: '#be185d', text: '#fbcfe8' },
+  { spine: '#0d9488', spineLight: '#14b8a6', cover: '#0f766e', text: '#99f6e4' },
+  { spine: '#0891b2', spineLight: '#06b6d4', cover: '#0e7490', text: '#a5f3fc' },
 ];
 
-const ITEM_SHADOWS = [
-  'shadow-red-500/25',
-  'shadow-orange-500/25',
-  'shadow-amber-500/25',
-  'shadow-emerald-500/25',
-  'shadow-blue-500/25',
-  'shadow-indigo-500/25',
-  'shadow-purple-500/25',
-  'shadow-pink-500/25',
-  'shadow-teal-500/25',
-  'shadow-cyan-500/25',
-];
+/* ── SVG sub-components ─────────────────────────────────────── */
+
+function BookSpine({ value, label, index, isCorrect, isSelected, isHidden, onClick, bookWidth }: {
+  value: number; label: string; index: number; isCorrect: boolean;
+  isSelected: boolean; isHidden: boolean; onClick: () => void; bookWidth: number;
+}) {
+  const colorIdx = (value - 1) % BOOK_COLORS.length;
+  const colors = BOOK_COLORS[colorIdx];
+  const bookHeight = 130;
+  const baseY = 10;
+
+  return (
+    <motion.g
+      onClick={onClick}
+      whileHover={{ y: -8 }}
+      whileTap={{ scale: 0.95 }}
+      style={{ cursor: 'pointer' }}
+      layout
+    >
+      {/* Selection glow */}
+      {isSelected && (
+        <motion.rect
+          x={-2} y={baseY - 4}
+          width={bookWidth + 4} height={bookHeight + 8}
+          rx="4"
+          fill="none" stroke="#fbbf24" strokeWidth="2.5"
+          animate={{ opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 1.2, repeat: Infinity }}
+        />
+      )}
+
+      {/* Book body - main spine */}
+      <rect x={0} y={baseY} width={bookWidth} height={bookHeight}
+        rx="2"
+        fill={isHidden ? '#374151' : colors.spine}
+        stroke={isHidden ? '#4b5563' : colors.cover}
+        strokeWidth="1"
+      />
+
+      {/* Spine highlight (left edge) */}
+      <rect x={0} y={baseY} width={3} height={bookHeight}
+        fill={isHidden ? '#4b5563' : colors.spineLight}
+        rx="1"
+      />
+
+      {/* Page edges (right side) */}
+      <rect x={bookWidth - 4} y={baseY + 3} width={4} height={bookHeight - 6}
+        fill="#e2e0d6" rx="1" />
+      {/* Individual page lines */}
+      {[0, 1, 2, 3, 4].map(i => (
+        <line key={`page-${i}`}
+          x1={bookWidth - 3} y1={baseY + 8 + i * ((bookHeight - 16) / 4)}
+          x2={bookWidth - 1} y2={baseY + 8 + i * ((bookHeight - 16) / 4)}
+          stroke="#c8c4b8" strokeWidth="0.5"
+        />
+      ))}
+
+      {/* Decorative band top */}
+      <rect x={4} y={baseY + 10} width={bookWidth - 8} height="2"
+        fill={isHidden ? '#4b5563' : colors.spineLight} opacity="0.6" rx="1" />
+
+      {/* Decorative band bottom */}
+      <rect x={4} y={baseY + bookHeight - 12} width={bookWidth - 8} height="2"
+        fill={isHidden ? '#4b5563' : colors.spineLight} opacity="0.6" rx="1" />
+
+      {/* Title / value on spine (rotated) */}
+      <text
+        x={bookWidth / 2}
+        y={baseY + bookHeight / 2 + 4}
+        textAnchor="middle"
+        fontSize={bookWidth > 40 ? "16" : "13"}
+        fontWeight="bold"
+        fill={isHidden ? '#6b7280' : colors.text}
+      >
+        {isHidden ? '?' : label}
+      </text>
+
+      {/* Position number at bottom */}
+      <text
+        x={bookWidth / 2}
+        y={baseY + bookHeight + 16}
+        textAnchor="middle"
+        fontSize="10"
+        fill="#6b7280"
+      >
+        {index + 1}
+      </text>
+
+      {/* Correct badge */}
+      {isCorrect && !isHidden && (
+        <g transform={`translate(${bookWidth - 4}, ${baseY - 2})`}>
+          <circle r="7" fill="#22c55e" stroke="#15101e" strokeWidth="1.5" />
+          <text textAnchor="middle" y="3.5" fontSize="8" fontWeight="bold" fill="white">✓</text>
+        </g>
+      )}
+    </motion.g>
+  );
+}
 
 type ActiveOp = 'swap' | 'flip' | 'rotate' | null;
+
+/* ── Main component ─────────────────────────────────────────── */
 
 export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: SequenceSortBoardProps) {
   const puzzle = useMemo(() => generateSequenceSort(difficulty, seed), [difficulty, seed]);
@@ -120,7 +208,6 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
           }
         }
       } else if (op === 'flip') {
-        // Click on position = flip first (index+1) items
         const count = index + 1;
         if (count < 2) {
           showError('최소 2개 이상 선택해야 합니다.');
@@ -143,7 +230,6 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
           doOp({ op: 'rotate', index: start, count });
         }
       } else {
-        // No op selected - if only one allowed, auto select
         if (puzzle.allowedOps.length === 1) {
           setActiveOp(puzzle.allowedOps[0]);
           setSelectedIndex(index);
@@ -188,6 +274,17 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
     setSelectedIndex(null);
   }, [playClick]);
 
+  /* ── Layout math for bookshelf SVG ── */
+  const itemCount = state.order.length;
+  const bookGap = 6;
+  const shelfPadding = 40;
+  const availableWidth = 800 - shelfPadding * 2;
+  const bookWidth = Math.min(60, Math.max(30, (availableWidth - (itemCount - 1) * bookGap) / itemCount));
+  const totalBooksWidth = itemCount * bookWidth + (itemCount - 1) * bookGap;
+  const booksStartX = (800 - totalBooksWidth) / 2;
+  const shelfY = 160;
+  const svgHeight = 200;
+
   return (
     <div className="space-y-5">
       {/* Error toast */}
@@ -217,36 +314,44 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
       {/* Goal */}
       <div className="bg-emerald-500/10 border border-emerald-400/20 rounded-2xl p-4 backdrop-blur-md">
         <span className="font-semibold text-emerald-400 text-sm">목표 순서: </span>
-        <div className="flex gap-2 mt-2">
+        <svg viewBox={`0 0 800 40`} className="w-full mt-2" style={{ maxHeight: '40px' }}>
           {puzzle.goalOrder.map((val, i) => {
-            const gradIdx = (val - 1) % ITEM_GRADIENTS.length;
+            const colorIdx = (val - 1) % BOOK_COLORS.length;
+            const colors = BOOK_COLORS[colorIdx];
+            const w = Math.min(36, (700 / puzzle.goalOrder.length));
+            const totalW = puzzle.goalOrder.length * w + (puzzle.goalOrder.length - 1) * 4;
+            const startX = (800 - totalW) / 2;
             return (
-              <span
-                key={i}
-                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${ITEM_GRADIENTS[gradIdx]} text-white flex items-center justify-center text-sm font-bold shadow-lg ${ITEM_SHADOWS[gradIdx]} border border-white/10 opacity-60`}
-              >
-                {val}
-              </span>
+              <g key={i} transform={`translate(${startX + i * (w + 4)}, 2)`}>
+                <rect width={w} height="30" rx="3"
+                  fill={colors.spine} stroke={colors.cover} strokeWidth="0.8" opacity="0.6" />
+                <text x={w / 2} y="20" textAnchor="middle" fontSize="12" fontWeight="bold"
+                  fill={colors.text} opacity="0.8">{val}</text>
+              </g>
             );
           })}
-        </div>
+        </svg>
         {puzzle.variant === 'multi-target' && puzzle.alternateGoals && (
           <div className="mt-2">
             <span className="text-xs text-emerald-400/60">또는: </span>
             {puzzle.alternateGoals.map((goal, gi) => (
-              <div key={gi} className="flex gap-1.5 mt-1">
+              <svg key={gi} viewBox={`0 0 800 30`} className="w-full mt-1" style={{ maxHeight: '30px' }}>
                 {goal.map((val, i) => {
-                  const gradIdx = (val - 1) % ITEM_GRADIENTS.length;
+                  const colorIdx = (val - 1) % BOOK_COLORS.length;
+                  const colors = BOOK_COLORS[colorIdx];
+                  const w = Math.min(28, (700 / goal.length));
+                  const totalW = goal.length * w + (goal.length - 1) * 3;
+                  const startX = (800 - totalW) / 2;
                   return (
-                    <span
-                      key={i}
-                      className={`w-8 h-8 rounded-lg bg-gradient-to-br ${ITEM_GRADIENTS[gradIdx]} text-white flex items-center justify-center text-xs font-bold border border-white/10 opacity-40`}
-                    >
-                      {val}
-                    </span>
+                    <g key={i} transform={`translate(${startX + i * (w + 3)}, 2)`}>
+                      <rect width={w} height="22" rx="2"
+                        fill={colors.spine} stroke={colors.cover} strokeWidth="0.5" opacity="0.4" />
+                      <text x={w / 2} y="15" textAnchor="middle" fontSize="9" fontWeight="bold"
+                        fill={colors.text} opacity="0.6">{val}</text>
+                    </g>
                   );
                 })}
-              </div>
+              </svg>
             ))}
           </div>
         )}
@@ -267,7 +372,9 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
                     : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                <ArrowDownUp className="w-4 h-4" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
+                </svg>
                 교환(swap)
               </motion.button>
             )}
@@ -281,7 +388,9 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
                     : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                <RotateCcw className="w-4 h-4" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
                 뒤집기(flip)
               </motion.button>
             )}
@@ -295,7 +404,10 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
                     : 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10'
                 }`}
               >
-                <Repeat className="w-4 h-4" />
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
                 회전(rotate)
               </motion.button>
             )}
@@ -310,57 +422,91 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
         </div>
       )}
 
-      {/* Current order */}
+      {/* ── Library Bookshelf SVG ── */}
       <div className="text-center py-2">
         <div className="text-[11px] font-bold text-slate-500 uppercase mb-4 tracking-widest">현재 순서</div>
-        <div className="flex gap-2.5 justify-center">
+
+        <svg viewBox={`0 0 800 ${svgHeight}`} className="w-full rounded-2xl overflow-hidden" style={{ maxHeight: '35vh' }}>
+          {/* Dark wood background */}
+          <rect width="800" height={svgHeight} fill="#1c1008" />
+
+          {/* Side panels */}
+          <rect x="0" y="0" width="18" height={svgHeight} fill="#2d1c0e" />
+          <rect x="782" y="0" width="18" height={svgHeight} fill="#2d1c0e" />
+          {/* Side panel grain */}
+          <line x1="6" y1="0" x2="6" y2={svgHeight} stroke="#3d2814" strokeWidth="0.5" opacity="0.5" />
+          <line x1="12" y1="0" x2="12" y2={svgHeight} stroke="#3d2814" strokeWidth="0.5" opacity="0.5" />
+          <line x1="788" y1="0" x2="788" y2={svgHeight} stroke="#3d2814" strokeWidth="0.5" opacity="0.5" />
+          <line x1="794" y1="0" x2="794" y2={svgHeight} stroke="#3d2814" strokeWidth="0.5" opacity="0.5" />
+
+          {/* Shelf board */}
+          <rect x="15" y={shelfY} width="770" height="14" fill="#3d2814" rx="2" />
+          {/* Wood grain on shelf */}
+          <line x1="15" y1={shelfY + 3} x2="785" y2={shelfY + 3} stroke="#4a3219" strokeWidth="0.5" />
+          <line x1="15" y1={shelfY + 7} x2="785" y2={shelfY + 7} stroke="#4a3219" strokeWidth="0.5" />
+          <line x1="15" y1={shelfY + 11} x2="785" y2={shelfY + 11} stroke="#2d1c0e" strokeWidth="0.5" />
+          {/* Shelf shadow */}
+          <rect x="15" y={shelfY + 14} width="770" height="4" fill="#0f0a04" opacity="0.3" rx="1" />
+
+          {/* Left bookend */}
+          <path d={`M${booksStartX - 15},${shelfY} L${booksStartX - 15},${shelfY - 40} L${booksStartX - 5},${shelfY - 40} L${booksStartX - 5},${shelfY}`}
+            fill="#6b4226" stroke="#8b5e34" strokeWidth="1" />
+          <line x1={booksStartX - 12} y1={shelfY - 35} x2={booksStartX - 8} y2={shelfY - 35}
+            stroke="#8b5e34" strokeWidth="0.8" />
+
+          {/* Right bookend */}
+          <path d={`M${booksStartX + totalBooksWidth + 5},${shelfY} L${booksStartX + totalBooksWidth + 5},${shelfY - 40} L${booksStartX + totalBooksWidth + 15},${shelfY - 40} L${booksStartX + totalBooksWidth + 15},${shelfY}`}
+            fill="#6b4226" stroke="#8b5e34" strokeWidth="1" />
+
+          {/* Ambient dust particles */}
+          {[
+            { cx: 120, cy: 50, d: 0 },
+            { cx: 350, cy: 30, d: 1 },
+            { cx: 600, cy: 60, d: 2 },
+            { cx: 700, cy: 40, d: 0.5 },
+          ].map((p, i) => (
+            <motion.circle
+              key={`dust-${i}`}
+              cx={p.cx} cy={p.cy} r="1"
+              fill="#d4a574"
+              animate={{ opacity: [0, 0.3, 0], cx: [p.cx, p.cx + 10, p.cx + 20] }}
+              transition={{ duration: 6, repeat: Infinity, delay: p.d }}
+            />
+          ))}
+
+          {/* Books */}
           <AnimatePresence mode="popLayout">
             {state.order.map((val, idx) => {
               const item = itemMap.get(val);
               const isCorrect = puzzle.goalOrder[idx] === val;
               const isSelected = selectedIndex === idx;
               const isHidden = puzzle.variant === 'blind' && !state.visiblePositions[idx];
-              const gradIdx = (val - 1) % ITEM_GRADIENTS.length;
-
-              // For flip mode, highlight items that would be flipped
-              const isInFlipRange = activeOp === 'flip' && selectedIndex === null; // all items are clickable
-              // For rotate mode with one selected, highlight the potential range
-              const isInRotateRange = activeOp === 'rotate' && selectedIndex !== null &&
-                idx >= Math.min(selectedIndex, idx) && idx <= Math.max(selectedIndex, idx);
+              const x = booksStartX + idx * (bookWidth + bookGap);
 
               return (
-                <motion.button
+                <motion.g
                   key={val}
                   layout
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  whileHover={{ scale: 1.12, y: -4 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => handleItemClick(idx)}
-                  className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center font-bold text-white transition-all duration-200 ${
-                    isHidden
-                      ? 'bg-slate-700/80 border-2 border-slate-600/60'
-                      : `bg-gradient-to-br ${ITEM_GRADIENTS[gradIdx]} shadow-lg ${ITEM_SHADOWS[gradIdx]} border border-white/10`
-                  } ${
-                    isSelected ? 'ring-2 ring-white/60 ring-offset-2 ring-offset-slate-900 scale-110' : ''
-                  }`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  transform={`translate(${x}, ${shelfY - 150})`}
                 >
-                  <span className="text-base sm:text-lg">
-                    {isHidden ? '?' : (item?.label ?? val)}
-                  </span>
-                  <span className="text-[9px] text-white/50 absolute bottom-0.5">
-                    {idx + 1}
-                  </span>
-                  {isCorrect && !isHidden && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-[8px] shadow-md">
-                      ✓
-                    </span>
-                  )}
-                </motion.button>
+                  <BookSpine
+                    value={val}
+                    label={item?.label ?? String(val)}
+                    index={idx}
+                    isCorrect={isCorrect}
+                    isSelected={isSelected}
+                    isHidden={isHidden}
+                    onClick={() => handleItemClick(idx)}
+                    bookWidth={bookWidth}
+                  />
+                </motion.g>
               );
             })}
           </AnimatePresence>
-        </div>
+        </svg>
       </div>
 
       {/* Quick operation buttons */}
@@ -370,7 +516,9 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
         {puzzle.allowedOps.includes('flip') && (
           <div>
             <div className="flex items-center gap-2 text-sm mb-2">
-              <RotateCcw className="w-4 h-4 text-purple-400 shrink-0" />
+              <svg className="w-4 h-4 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
               <span className="font-semibold text-slate-200">뒤집기</span>
               <span className="text-xs text-slate-500">(처음 N개를 뒤집기)</span>
             </div>
@@ -394,7 +542,10 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
         {puzzle.allowedOps.includes('rotate') && (
           <div>
             <div className="flex items-center gap-2 text-sm mb-2">
-              <Repeat className="w-4 h-4 text-teal-400 shrink-0" />
+              <svg className="w-4 h-4 text-teal-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
               <span className="font-semibold text-slate-200">회전</span>
               <span className="text-xs text-slate-500">(위치에서 3개 회전)</span>
             </div>
@@ -417,7 +568,9 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
 
         {puzzle.allowedOps.includes('swap') && puzzle.allowedOps.length === 1 && (
           <div className="flex items-center gap-2 text-sm">
-            <ArrowDownUp className="w-4 h-4 text-blue-400 shrink-0" />
+            <svg className="w-4 h-4 text-blue-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4" />
+            </svg>
             <span className="text-slate-400"><strong className="text-slate-200">교환:</strong> 인접한 두 항목을 클릭하여 교환</span>
           </div>
         )}
@@ -458,12 +611,17 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
       <div className="flex flex-wrap gap-3 justify-center">
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0 || state.isComplete}
           className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold disabled:opacity-30 hover:bg-white/10 transition-all border border-white/5">
-          <RotateCcw className="w-4 h-4" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </svg>
           되돌리기
         </motion.button>
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
           className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold hover:bg-white/10 transition-all border border-white/5">
-          <RefreshCw className="w-4 h-4" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
           처음부터
         </motion.button>
       </div>
