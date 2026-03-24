@@ -12,6 +12,7 @@ import {
   type RiverState,
 } from '@/engines/river-crossing/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { RotateCcw, RefreshCw } from 'lucide-react';
 
 interface RiverCrossingBoardProps {
   difficulty: number;
@@ -208,8 +209,9 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
   useEffect(() => {
     if (state.isFailed && state.failReason) {
       playError();
-      const failSide = state.boatPosition;
-      setShakeBank(failSide === 'left' ? 'right' : 'left');
+      // Shake the bank where the violation occurred (the bank boat arrived at)
+      const arrivalSide = state.boatPosition === 'left' ? 'left' : 'right';
+      setShakeBank(arrivalSide);
       setViolationToast(state.failReason);
       onFail?.(state.failReason);
 
@@ -221,35 +223,47 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
     }
   }, [state.isFailed, state.failReason, state.boatPosition, onFail, playError]);
 
+  const showError = useCallback((msg: string) => {
+    setViolationToast(msg);
+    playError();
+    if (toastTimeout.current) clearTimeout(toastTimeout.current);
+    toastTimeout.current = setTimeout(() => setViolationToast(null), 3000);
+  }, [playError]);
+
   const handleClickEntity = useCallback(
     (entityId: string) => {
-      if (isBoatMoving || state.isComplete) return;
+      if (isBoatMoving || state.isComplete || state.isFailed) return;
       playClick();
 
       if (state.boatContents.includes(entityId)) {
         const result = unboardEntity(state, entityId);
-        if ('error' in result) return;
+        if ('error' in result) {
+          showError(result.error);
+          return;
+        }
         setState(result);
       } else {
-        if (state.boatContents.length >= puzzle.boatCapacity + 1) return;
+        if (state.boatContents.length >= puzzle.boatCapacity + 1) {
+          showError(`보트는 ${puzzle.ownerName} 외에 ${puzzle.boatCapacity}명만 태울 수 있습니다.`);
+          return;
+        }
         const result = boardEntity(state, entityId);
-        if ('error' in result) return;
+        if ('error' in result) {
+          showError(result.error);
+          return;
+        }
         setState(result);
       }
     },
-    [isBoatMoving, state, puzzle.boatCapacity, playClick],
+    [isBoatMoving, state, puzzle.boatCapacity, puzzle.ownerName, playClick, showError],
   );
 
   const handleSail = useCallback(() => {
-    if (isBoatMoving || state.isComplete) return;
+    if (isBoatMoving || state.isComplete || state.isFailed) return;
 
     const result = sail(state, puzzle);
     if ('error' in result) {
-      playError();
-      onFail?.(result.error);
-      setViolationToast(result.error);
-      if (toastTimeout.current) clearTimeout(toastTimeout.current);
-      toastTimeout.current = setTimeout(() => setViolationToast(null), 3000);
+      showError(result.error);
       return;
     }
 
@@ -259,12 +273,14 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
       setState(result);
       setIsBoatMoving(false);
     }, 800);
-  }, [isBoatMoving, state, puzzle, playSplash, playError, onFail]);
+  }, [isBoatMoving, state, puzzle, playSplash, showError]);
 
   const handleUndo = useCallback(() => {
     if (isBoatMoving || state.moveHistory.length === 0) return;
     playClick();
     setState(undo(state));
+    setShakeBank(null);
+    setViolationToast(null);
   }, [isBoatMoving, state, playClick]);
 
   const handleReset = useCallback(() => {
@@ -292,6 +308,16 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
         )}
       </AnimatePresence>
 
+      {/* Story & Rules */}
+      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 text-sm">
+        <p className="font-medium mb-2 text-slate-100">{puzzle.story}</p>
+        <ul className="space-y-1 text-slate-400">
+          {puzzle.rules.map((rule, i) => (
+            <li key={i} className="flex gap-2"><span className="text-blue-400">•</span>{rule}</li>
+          ))}
+        </ul>
+      </div>
+
       {/* ── Desktop Layout ── */}
       <div className="hidden md:flex items-stretch gap-0 min-h-[300px] rounded-2xl overflow-hidden shadow-2xl shadow-black/20 border border-white/5">
         {/* Left Bank - 35% */}
@@ -301,7 +327,7 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             side="left"
             entities={state.leftBank.filter(id => !state.boatContents.includes(id))}
             getEntity={getEntity}
-            active={state.boatPosition === 'left' && !isBoatMoving}
+            active={state.boatPosition === 'left' && !isBoatMoving && !state.isFailed}
             onClickEntity={handleClickEntity}
             shake={shakeBank === 'left'}
           />
@@ -391,12 +417,12 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             onClick={handleSail}
-            disabled={isBoatMoving || !boatHasPassengers || state.isComplete}
+            disabled={isBoatMoving || !boatHasPassengers || state.isComplete || state.isFailed}
             className={`
               relative z-10 mt-4 px-7 py-2.5 rounded-2xl font-bold text-white text-sm
               shadow-lg transition-all duration-200
               disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none
-              ${boatHasPassengers && !state.isComplete
+              ${boatHasPassengers && !state.isComplete && !state.isFailed
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-blue-500/30 animate-pulse-button'
                 : 'bg-white/10 backdrop-blur-sm border border-white/10'
               }
@@ -413,7 +439,7 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             side="right"
             entities={state.rightBank.filter(id => !state.boatContents.includes(id))}
             getEntity={getEntity}
-            active={state.boatPosition === 'right' && !isBoatMoving}
+            active={state.boatPosition === 'right' && !isBoatMoving && !state.isFailed}
             onClickEntity={handleClickEntity}
             shake={shakeBank === 'right'}
           />
@@ -429,7 +455,7 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             side="left"
             entities={state.leftBank.filter(id => !state.boatContents.includes(id))}
             getEntity={getEntity}
-            active={state.boatPosition === 'left' && !isBoatMoving}
+            active={state.boatPosition === 'left' && !isBoatMoving && !state.isFailed}
             onClickEntity={handleClickEntity}
             shake={shakeBank === 'left'}
           />
@@ -492,12 +518,12 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.96 }}
             onClick={handleSail}
-            disabled={isBoatMoving || !boatHasPassengers || state.isComplete}
+            disabled={isBoatMoving || !boatHasPassengers || state.isComplete || state.isFailed}
             className={`
               relative z-10 mt-3 px-7 py-2.5 rounded-2xl font-bold text-white text-sm
               shadow-lg transition-all duration-200
               disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none
-              ${boatHasPassengers && !state.isComplete
+              ${boatHasPassengers && !state.isComplete && !state.isFailed
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/30 animate-pulse-button'
                 : 'bg-white/10 backdrop-blur-sm border border-white/10'
               }
@@ -514,11 +540,25 @@ export function RiverCrossingBoard({ difficulty, seed, onComplete, onFail }: Riv
             side="right"
             entities={state.rightBank.filter(id => !state.boatContents.includes(id))}
             getEntity={getEntity}
-            active={state.boatPosition === 'right' && !isBoatMoving}
+            active={state.boatPosition === 'right' && !isBoatMoving && !state.isFailed}
             onClickEntity={handleClickEntity}
             shake={shakeBank === 'right'}
           />
         </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={isBoatMoving || state.moveHistory.length === 0}
+          className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold disabled:opacity-30 hover:bg-white/10 transition-all border border-white/5">
+          <RotateCcw className="w-4 h-4" />
+          되돌리기
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold hover:bg-white/10 transition-all border border-white/5">
+          <RefreshCw className="w-4 h-4" />
+          처음부터
+        </motion.button>
       </div>
 
       {/* Step counter pill */}

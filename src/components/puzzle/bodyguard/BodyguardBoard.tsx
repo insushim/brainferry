@@ -38,10 +38,11 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
   const { playSplash, playError, playClick, playSuccess } = useAudio();
 
   const entityMap = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; emoji: string; role: 'protector' | 'charge' }>();
-    for (const pair of puzzle.pairs) {
-      map.set(pair.protector.id, { ...pair.protector, role: 'protector' });
-      map.set(pair.charge.id, { ...pair.charge, role: 'charge' });
+    const map = new Map<string, { id: string; name: string; emoji: string; role: 'protector' | 'charge'; pairIdx: number }>();
+    for (let i = 0; i < puzzle.pairs.length; i++) {
+      const pair = puzzle.pairs[i];
+      map.set(pair.protector.id, { ...pair.protector, role: 'protector', pairIdx: i });
+      map.set(pair.charge.id, { ...pair.charge, role: 'charge', pairIdx: i });
     }
     return map;
   }, [puzzle.pairs]);
@@ -63,6 +64,7 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
   const currentBank = state.boatPosition === 'left' ? state.leftSide : state.rightSide;
 
   const toggleSelect = useCallback((id: string) => {
+    if (state.isComplete || isMoving) return;
     if (!currentBank.includes(id)) return;
     playClick();
     setSelected((prev) => {
@@ -75,7 +77,7 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
       }
       return next;
     });
-  }, [currentBank, puzzle.boatCapacity, playClick]);
+  }, [currentBank, puzzle.boatCapacity, playClick, state.isComplete, isMoving]);
 
   const handleSail = useCallback(() => {
     if (isMoving || selected.size === 0 || state.isComplete) return;
@@ -147,8 +149,8 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
           entityMap={entityMap}
           active={state.boatPosition === 'left' && !isMoving}
           selected={selected}
-          onToggle={state.boatPosition === 'left' ? toggleSelect : undefined}
-          failed={state.isFailed && state.boatPosition !== 'left'}
+          onToggle={state.boatPosition === 'left' && !isMoving ? toggleSelect : undefined}
+          failed={state.isFailed}
         />
 
         {/* River + Boat */}
@@ -170,7 +172,7 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
               }}
             >
               <div className="text-xl text-center drop-shadow-lg">🚣</div>
-              <div className="flex gap-1 justify-center mt-1.5 min-h-[32px]">
+              <div className="flex gap-1 justify-center mt-1.5 min-h-[32px] flex-wrap max-w-[100px]">
                 {[...selected].map((id) => {
                   const entity = entityMap.get(id);
                   return entity ? (
@@ -188,8 +190,8 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
           entityMap={entityMap}
           active={state.boatPosition === 'right' && !isMoving}
           selected={selected}
-          onToggle={state.boatPosition === 'right' ? toggleSelect : undefined}
-          failed={state.isFailed && state.boatPosition !== 'right'}
+          onToggle={state.boatPosition === 'right' && !isMoving ? toggleSelect : undefined}
+          failed={state.isFailed}
         />
       </div>
 
@@ -242,7 +244,7 @@ function EntityBank({
 }: {
   label: string;
   entities: string[];
-  entityMap: Map<string, { id: string; name: string; emoji: string; role: 'protector' | 'charge' }>;
+  entityMap: Map<string, { id: string; name: string; emoji: string; role: 'protector' | 'charge'; pairIdx: number }>;
   active: boolean;
   selected: Set<string>;
   onToggle?: (id: string) => void;
@@ -278,8 +280,9 @@ function EntityBank({
                 whileHover={onToggle ? { scale: 1.08, y: -3 } : undefined}
                 whileTap={onToggle ? { scale: 0.92 } : undefined}
                 onClick={() => onToggle?.(id)}
+                disabled={!onToggle}
                 className={`flex flex-col items-center p-2 rounded-2xl transition-all duration-200 min-w-[60px] ${
-                  onToggle ? 'cursor-pointer' : 'cursor-default'
+                  onToggle ? 'cursor-pointer' : 'cursor-default opacity-60'
                 } ${isSelected
                   ? 'bg-blue-500/20 border border-blue-400/40 ring-2 ring-blue-400/30 shadow-lg shadow-blue-500/15'
                   : entity.role === 'protector'

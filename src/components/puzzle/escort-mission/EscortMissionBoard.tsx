@@ -35,8 +35,11 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
   const [state, setState] = useState<EscortState>(() => createInitialState(puzzle));
   const [selectedA, setSelectedA] = useState(0);
   const [selectedB, setSelectedB] = useState(0);
+  const [selectedC, setSelectedC] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
   const { playSplash, playError, playClick, playSuccess } = useAudio();
+
+  const hasGroupC = !!puzzle.groupC;
 
   useEffect(() => {
     if (state.isComplete) {
@@ -55,7 +58,13 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
   const handleSail = useCallback(() => {
     if (isMoving || state.isComplete) return;
     const direction = state.boatPosition === 'left' ? 'left-to-right' as const : 'right-to-left' as const;
-    const result = applyMove(state, { groupA: selectedA, groupB: selectedB, direction }, puzzle);
+    const move = {
+      groupA: selectedA,
+      groupB: selectedB,
+      ...(hasGroupC ? { groupC: selectedC } : {}),
+      direction,
+    };
+    const result = applyMove(state, move, puzzle);
     if ('error' in result) {
       playError();
       onFail?.(result.error);
@@ -67,14 +76,18 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
       setState(result);
       setSelectedA(0);
       setSelectedB(0);
+      setSelectedC(0);
       setIsMoving(false);
     }, 600);
-  }, [isMoving, state, selectedA, selectedB, puzzle, playSplash, playError, onFail]);
+  }, [isMoving, state, selectedA, selectedB, selectedC, hasGroupC, puzzle, playSplash, playError, onFail]);
 
   const handleUndo = useCallback(() => {
     if (state.moveHistory.length === 0) return;
     playClick();
     setState(undo(state, puzzle));
+    setSelectedA(0);
+    setSelectedB(0);
+    setSelectedC(0);
   }, [state, puzzle, playClick]);
 
   const handleReset = useCallback(() => {
@@ -82,12 +95,16 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
     setState(createInitialState(puzzle));
     setSelectedA(0);
     setSelectedB(0);
+    setSelectedC(0);
   }, [puzzle, playClick]);
 
   const currentA = state.boatPosition === 'left' ? state.leftA : state.rightA;
   const currentB = state.boatPosition === 'left' ? state.leftB : state.rightB;
+  const currentC = state.boatPosition === 'left' ? state.leftC : state.rightC;
+  const totalSelected = selectedA + selectedB + selectedC;
   const maxA = Math.min(currentA, puzzle.boatCapacity);
   const maxB = Math.min(currentB, puzzle.boatCapacity - selectedA);
+  const maxC = hasGroupC ? Math.min(currentC, puzzle.boatCapacity - selectedA - selectedB) : 0;
 
   return (
     <div className="space-y-4">
@@ -108,8 +125,10 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
           label="이쪽"
           groupA={puzzle.groupA}
           groupB={puzzle.groupB}
+          groupC={puzzle.groupC}
           countA={state.leftA}
           countB={state.leftB}
+          countC={state.leftC}
           active={state.boatPosition === 'left'}
           failed={state.isFailed}
         />
@@ -139,15 +158,24 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
                   label={puzzle.groupA.name}
                   value={selectedA}
                   max={maxA}
-                  onChange={(v) => { setSelectedA(v); setSelectedB(0); }}
+                  onChange={(v) => { setSelectedA(v); setSelectedB(0); setSelectedC(0); }}
                 />
                 <NumberPicker
                   emoji={puzzle.groupB.emoji}
                   label={puzzle.groupB.name}
                   value={selectedB}
                   max={maxB}
-                  onChange={setSelectedB}
+                  onChange={(v) => { setSelectedB(v); setSelectedC(0); }}
                 />
+                {hasGroupC && puzzle.groupC && (
+                  <NumberPicker
+                    emoji={puzzle.groupC.emoji}
+                    label={puzzle.groupC.name}
+                    value={selectedC}
+                    max={maxC}
+                    onChange={setSelectedC}
+                  />
+                )}
               </div>
             </div>
           </motion.div>
@@ -158,8 +186,10 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
           label="저쪽"
           groupA={puzzle.groupA}
           groupB={puzzle.groupB}
+          groupC={puzzle.groupC}
           countA={state.rightA}
           countB={state.rightB}
+          countC={state.rightC}
           active={state.boatPosition === 'right'}
           failed={state.isFailed}
         />
@@ -170,9 +200,9 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleSail}
-          disabled={isMoving || (selectedA + selectedB === 0) || state.isComplete}
+          disabled={isMoving || totalSelected === 0 || state.isComplete}
           className={`px-8 py-3 rounded-2xl text-white font-bold disabled:opacity-30 shadow-lg transition-all ${
-            (selectedA + selectedB > 0) && !state.isComplete
+            totalSelected > 0 && !state.isComplete
               ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-blue-500/25 animate-pulse-button'
               : 'bg-white/10 backdrop-blur-sm border border-white/10'
           }`}
@@ -222,19 +252,19 @@ function NumberPicker({
       <span className="text-lg drop-shadow">{emoji}</span>
       <div className="flex items-center gap-1">
         <button
-          onClick={() => onChange(Math.max(0, value - 1))}
+          onClick={(e) => { e.stopPropagation(); onChange(Math.max(0, value - 1)); }}
           disabled={value <= 0}
-          className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-20 flex items-center justify-center transition-colors border border-white/5"
+          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-20 flex items-center justify-center transition-colors border border-white/5 active:scale-90"
         >
-          <Minus className="w-3 h-3" />
+          <Minus className="w-3.5 h-3.5" />
         </button>
         <span className="w-8 text-center font-bold text-lg tabular-nums">{value}</span>
         <button
-          onClick={() => onChange(Math.min(max, value + 1))}
+          onClick={(e) => { e.stopPropagation(); onChange(Math.min(max, value + 1)); }}
           disabled={value >= max}
-          className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-20 flex items-center justify-center transition-colors border border-white/5"
+          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-20 flex items-center justify-center transition-colors border border-white/5 active:scale-90"
         >
-          <Plus className="w-3 h-3" />
+          <Plus className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -245,16 +275,20 @@ function GroupBank({
   label,
   groupA,
   groupB,
+  groupC,
   countA,
   countB,
+  countC,
   active,
   failed,
 }: {
   label: string;
   groupA: { name: string; emoji: string };
   groupB: { name: string; emoji: string };
+  groupC?: { name: string; emoji: string; count: number };
   countA: number;
   countB: number;
+  countC: number;
   active: boolean;
   failed: boolean;
 }) {
@@ -301,6 +335,22 @@ function GroupBank({
           </motion.div>
           <div className="text-xs text-slate-400">{groupB.name}</div>
         </div>
+        {groupC && (
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-3xl shadow-lg shadow-black/10 border border-white/10 mb-1">
+              {groupC.emoji}
+            </div>
+            <motion.div
+              key={countC}
+              initial={{ scale: 1.3 }}
+              animate={{ scale: 1 }}
+              className="text-xl font-bold text-slate-100 drop-shadow tabular-nums"
+            >
+              {countC}
+            </motion.div>
+            <div className="text-xs text-slate-400">{groupC.name}</div>
+          </div>
+        )}
       </div>
     </div>
   );

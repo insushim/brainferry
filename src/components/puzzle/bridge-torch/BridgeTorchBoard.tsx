@@ -22,7 +22,8 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
   const puzzle = useMemo(() => generateBridgeTorch(difficulty, seed), [difficulty, seed]);
   const [state, setState] = useState<BridgeTorchState>(() => createInitialState(puzzle));
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const { playClick, playError, playSuccess } = useAudio();
+  const [isMoving, setIsMoving] = useState(false);
+  const { playClick, playError, playSuccess, playSplash } = useAudio();
 
   const speedMap = useMemo(
     () => new Map(puzzle.people.map((p) => [p.id, p])),
@@ -43,7 +44,11 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
     }
   }, [state.isFailed, state.failReason, onFail, playError]);
 
+  const currentSide = state.torchPosition === 'left' ? state.leftSide : state.rightSide;
+
   const toggleSelect = useCallback((id: string) => {
+    if (state.isComplete || state.isFailed || isMoving) return;
+    if (!currentSide.includes(id)) return;
     playClick();
     setSelected((prev) => {
       const next = new Set(prev);
@@ -56,10 +61,10 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
       }
       return next;
     });
-  }, [playClick, state.torchPosition, puzzle.bridgeCapacity]);
+  }, [playClick, state.torchPosition, state.isComplete, state.isFailed, isMoving, puzzle.bridgeCapacity, currentSide]);
 
   const handleMove = useCallback(() => {
-    if (selected.size === 0) return;
+    if (selected.size === 0 || isMoving || state.isComplete || state.isFailed) return;
     const direction = state.torchPosition === 'left' ? 'forward' as const : 'back' as const;
     const result = applyMove(state, { people: [...selected], direction, time: 0 }, puzzle);
     if ('error' in result) {
@@ -67,9 +72,14 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
       onFail?.(result.error);
       return;
     }
-    setState(result);
-    setSelected(new Set());
-  }, [selected, state, puzzle, playError, onFail]);
+    playSplash();
+    setIsMoving(true);
+    setTimeout(() => {
+      setState(result);
+      setSelected(new Set());
+      setIsMoving(false);
+    }, 600);
+  }, [selected, state, puzzle, playError, playSplash, onFail, isMoving]);
 
   const handleUndo = useCallback(() => {
     if (state.moveHistory.length === 0) return;
@@ -116,13 +126,14 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
 
       {/* Board */}
       <div className="flex flex-col md:flex-row items-stretch gap-0 min-h-[260px] rounded-2xl overflow-hidden shadow-2xl shadow-black/20 border border-white/5">
+        {/* Left side */}
         <PersonGroup
           label="이쪽"
           people={state.leftSide}
           speedMap={speedMap}
           hasTorch={state.torchPosition === 'left'}
           selected={selected}
-          onToggle={state.torchPosition === 'left' ? toggleSelect : undefined}
+          onToggle={state.torchPosition === 'left' && !isMoving ? toggleSelect : undefined}
         />
 
         {/* Bridge */}
@@ -139,15 +150,34 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
           >
             {state.torchPosition === 'left' ? '→' : '←'}
           </motion.div>
+          {/* Show selected people on bridge during move */}
+          {isMoving && (
+            <div className="flex gap-1 mt-1">
+              {[...selected].map((id) => {
+                const person = speedMap.get(id);
+                return person ? (
+                  <motion.span
+                    key={id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-lg"
+                  >
+                    {person.emoji}
+                  </motion.span>
+                ) : null;
+              })}
+            </div>
+          )}
         </div>
 
+        {/* Right side */}
         <PersonGroup
           label="저쪽"
           people={state.rightSide}
           speedMap={speedMap}
           hasTorch={state.torchPosition === 'right'}
           selected={selected}
-          onToggle={state.torchPosition === 'right' ? toggleSelect : undefined}
+          onToggle={state.torchPosition === 'right' && !isMoving ? toggleSelect : undefined}
         />
       </div>
 
@@ -156,9 +186,9 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleMove}
-          disabled={selected.size === 0 || state.isComplete || state.isFailed}
+          disabled={selected.size === 0 || state.isComplete || state.isFailed || isMoving}
           className={`px-8 py-3 rounded-2xl text-white font-bold disabled:opacity-30 shadow-lg transition-all ${
-            selected.size > 0 && !state.isComplete
+            selected.size > 0 && !state.isComplete && !state.isFailed
               ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 shadow-blue-500/25 animate-pulse-button'
               : 'bg-white/10 backdrop-blur-sm border border-white/10'
           }`}
@@ -234,8 +264,9 @@ function PersonGroup({
                 whileHover={onToggle ? { scale: 1.08, y: -3 } : undefined}
                 whileTap={onToggle ? { scale: 0.92 } : undefined}
                 onClick={() => onToggle?.(id)}
+                disabled={!onToggle}
                 className={`flex flex-col items-center p-2.5 rounded-2xl transition-all duration-200 min-w-[64px] ${
-                  onToggle ? 'cursor-pointer' : 'cursor-default'
+                  onToggle ? 'cursor-pointer' : 'cursor-default opacity-60'
                 } ${isSelected
                   ? 'bg-blue-500/20 border border-blue-400/40 ring-2 ring-blue-400/30 shadow-lg shadow-blue-500/15'
                   : 'bg-white/10 backdrop-blur-md border border-white/10 shadow-lg shadow-black/10 hover:border-white/20 hover:bg-white/15'
@@ -251,6 +282,9 @@ function PersonGroup({
           })}
         </AnimatePresence>
       </div>
+      {people.length === 0 && (
+        <div className="text-slate-600 text-sm z-10">비어 있음</div>
+      )}
     </div>
   );
 }
