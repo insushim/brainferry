@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { CATEGORIES, type CategoryId } from '@/engines/types';
+import { generatePuzzle } from '@/engines/registry';
 import { usePuzzleStore } from '@/stores/puzzle-store';
 import { PuzzleShell } from '@/components/puzzle/PuzzleShell';
 import { RiverCrossingBoard } from '@/components/puzzle/river-crossing/RiverCrossingBoard';
@@ -38,6 +39,18 @@ export function CategoryPlayClient({ categoryId }: { categoryId: CategoryId }) {
   const [puzzleKey, setPuzzleKey] = useState(0);
   const [result, setResult] = useState<{ steps: number; optimal: number } | null>(null);
   const [failReason, setFailReason] = useState<string | null>(null);
+
+  // Generate puzzle at the parent level to extract story/rules/hints for PuzzleShell
+  // Board components generate the same puzzle internally (deterministic: same seed+difficulty)
+  const puzzle = useMemo(
+    () => generatePuzzle(categoryId, difficulty, seed),
+    [categoryId, difficulty, seed],
+  );
+
+  const variant = useMemo(
+    () => (puzzle as { variant?: string }).variant,
+    [puzzle],
+  );
 
   useEffect(() => {
     startPuzzle(categoryId, difficulty, seed);
@@ -81,6 +94,10 @@ export function CategoryPlayClient({ categoryId }: { categoryId: CategoryId }) {
   return (
     <PuzzleShell
       categoryInfo={categoryInfo}
+      story={puzzle.story}
+      rules={puzzle.rules}
+      hints={puzzle.hints}
+      variant={variant}
       result={result}
       failReason={failReason}
       onNewPuzzle={handleNewPuzzle}

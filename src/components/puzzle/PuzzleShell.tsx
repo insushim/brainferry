@@ -12,6 +12,9 @@ import {
   ChevronDown,
   Settings,
   X,
+  BookOpen,
+  AlertTriangle,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePuzzleStore } from '@/stores/puzzle-store';
@@ -23,6 +26,10 @@ import type { CategoryInfo } from '@/engines/types';
 interface PuzzleShellProps {
   categoryInfo: CategoryInfo;
   children: ReactNode;
+  story?: string;
+  rules?: string[];
+  hints?: string[];
+  variant?: string;
   result: { steps: number; optimal: number } | null;
   failReason: string | null;
   onNewPuzzle: () => void;
@@ -30,6 +37,90 @@ interface PuzzleShellProps {
   onUndo?: () => void;
   onDismissFail: () => void;
 }
+
+const VARIANT_LABELS: Record<string, string> = {
+  // river-crossing
+  'basic': '기본',
+  'weight-limit': '무게 제한',
+  'one-way': '일방통행',
+  'two-boats': '두 척 보트',
+  'island': '섬 경유',
+  // escort-mission
+  'vip-escort': 'VIP 호위',
+  'traitor': '배신자',
+  'three-groups': '3그룹',
+  // bridge-torch
+  'bridge-durability': '다리 내구도',
+  'two-bridges': '두 개 다리',
+  'battery-drain': '배터리 소모',
+  // water-jug
+  'basic-2': '2통 기본',
+  'basic-3': '3통 기본',
+  'leaky': '누수',
+  'mixing': '혼합 금지',
+  // tower-hanoi
+  'classic': '클래식',
+  'color-restrict': '색상 제한',
+  'detour': '우회',
+  'dual-tower': '듀얼 타워',
+  // bodyguard
+  'exclusive': '배타적',
+  'double-agent': '이중 스파이',
+  'hierarchy': '계층 구조',
+  // logic-grid
+  'ordering': '순서 배치',
+  'liar': '거짓말쟁이',
+  'conditional': '조건부',
+  // switch-light
+  'toggle-chain': '연쇄 토글',
+  'timer': '타이머',
+  'sequence': '시퀀스',
+  // balance-scale
+  'unknown-weight': '미지 무게',
+  'multiple-fake': '다중 가짜',
+  'broken-scale': '고장 저울',
+  // sequence-sort
+  'limited-ops': '제한 연산',
+  'blind': '블라인드',
+  'multi-target': '다중 목표',
+};
+
+const VARIANT_EMOJIS: Record<string, string> = {
+  'basic': '',
+  'weight-limit': '⚖️',
+  'one-way': '⚡',
+  'two-boats': '🚣',
+  'island': '🏝️',
+  'vip-escort': '👑',
+  'traitor': '🗡️',
+  'three-groups': '👥',
+  'bridge-durability': '🔨',
+  'two-bridges': '🌉',
+  'battery-drain': '🔋',
+  'basic-2': '',
+  'basic-3': '',
+  'leaky': '💧',
+  'mixing': '🎨',
+  'classic': '',
+  'color-restrict': '🎨',
+  'detour': '🔄',
+  'dual-tower': '🏗️',
+  'exclusive': '🚫',
+  'double-agent': '🕵️',
+  'hierarchy': '📊',
+  'ordering': '📐',
+  'liar': '🤥',
+  'conditional': '❓',
+  'toggle-chain': '🔗',
+  'timer': '⏱️',
+  'sequence': '🔢',
+  'unknown-weight': '❓',
+  'multiple-fake': '💰',
+  'broken-scale': '🔧',
+  'limited-ops': '🔒',
+  'blind': '🙈',
+  'multi-target': '🎯',
+};
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -40,6 +131,10 @@ function formatTime(seconds: number): string {
 export function PuzzleShell({
   categoryInfo,
   children,
+  story,
+  rules,
+  hints,
+  variant,
   result,
   failReason,
   onNewPuzzle,
@@ -61,6 +156,11 @@ export function PuzzleShell({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const diffLabel = DIFFICULTY_LABELS[difficulty] || `레벨 ${difficulty}`;
+
+  const variantLabel = variant && variant !== 'basic' && variant !== 'classic'
+    ? VARIANT_LABELS[variant] || variant
+    : null;
+  const variantEmoji = variant ? (VARIANT_EMOJIS[variant] || '') : '';
 
   const handleHint = useCallback(() => {
     playHint();
@@ -88,6 +188,23 @@ export function PuzzleShell({
 
   const timeDisplay = useMemo(() => formatTime(elapsedTime), [elapsedTime]);
   const colonVisible = elapsedTime % 2 === 0;
+
+  // Split rules into constraint rules (containing emoji) and general rules
+  const { generalRules, constraintRules } = useMemo(() => {
+    if (!rules) return { generalRules: [], constraintRules: [] };
+    const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+    const constraint: string[] = [];
+    const general: string[] = [];
+    for (const rule of rules) {
+      // Rules with predator/prey patterns or warning emoji go to constraints
+      if (rule.startsWith('\u26A0\uFE0F') || (rule.includes('\uC744(\uB97C)') && emojiRegex.test(rule))) {
+        constraint.push(rule);
+      } else {
+        general.push(rule);
+      }
+    }
+    return { generalRules: general, constraintRules: constraint };
+  }, [rules]);
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-4 pb-24 sm:pb-28">
@@ -175,6 +292,11 @@ export function PuzzleShell({
         >
           <div className="w-1 h-6 rounded-full bg-gradient-to-b from-blue-500 to-purple-600" />
           <span className="text-sm font-bold flex-1">이야기 & 규칙</span>
+          {variantLabel && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              {variantEmoji} {variantLabel}
+            </span>
+          )}
           <motion.div animate={{ rotate: storyOpen ? 180 : 0 }}>
             <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />
           </motion.div>
@@ -188,18 +310,66 @@ export function PuzzleShell({
               transition={{ duration: 0.25, ease: 'easeInOut' }}
               className="overflow-hidden"
             >
-              <div className="glass-card rounded-2xl p-4 border-l-4 border-l-blue-500">
-                {/* Story and rules are rendered inside children (board component) */}
-                <p className="text-sm text-[var(--text-secondary)]">
-                  퍼즐 보드 위의 이야기를 확인하세요
-                </p>
+              <div className="glass-card rounded-2xl p-4 border-l-4 border-l-blue-500 space-y-3">
+                {/* Story */}
+                {story ? (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <BookOpen className="w-3.5 h-3.5 text-blue-500" />
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">이야기</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-[var(--text)]">
+                      {story}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    퍼즐 보드 위의 이야기를 확인하세요
+                  </p>
+                )}
+
+                {/* General Rules */}
+                {generalRules.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Zap className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">규칙</span>
+                    </div>
+                    <ul className="space-y-1">
+                      {generalRules.map((rule, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-[var(--text)]">
+                          <span className="text-emerald-500 mt-0.5 shrink-0">{'•'}</span>
+                          <span className="leading-relaxed">{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Constraint Rules (danger zone) */}
+                {constraintRules.length > 0 && (
+                  <div className="bg-red-500/5 border border-red-500/15 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                      <span className="text-xs font-bold text-red-500 dark:text-red-400">위험 조합</span>
+                    </div>
+                    <ul className="space-y-1">
+                      {constraintRules.map((rule, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-[var(--text)]">
+                          <span className="text-red-400 mt-0.5 shrink-0">{'•'}</span>
+                          <span className="leading-relaxed">{rule}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Hint Panel (slide up from reference point) ── */}
+      {/* ── Hint Panel ── */}
       <AnimatePresence>
         {showHint && (
           <motion.div
@@ -219,9 +389,15 @@ export function PuzzleShell({
                   {hintsUsed}/{MAX_FREE_DAILY_HINTS}
                 </span>
               </div>
-              <p className="text-sm text-[var(--text-secondary)]">
-                힌트가 퍼즐 내부에서 제공됩니다. 보드 위 힌트를 확인하세요.
-              </p>
+              {hints && hints.length > 0 ? (
+                <p className="text-sm text-[var(--text)]">
+                  {hints[currentHintIndex % hints.length]}
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  힌트가 퍼즐 내부에서 제공됩니다. 보드 위 힌트를 확인하세요.
+                </p>
+              )}
             </div>
           </motion.div>
         )}

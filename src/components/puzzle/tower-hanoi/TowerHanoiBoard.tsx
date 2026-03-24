@@ -19,14 +19,25 @@ interface TowerHanoiBoardProps {
 }
 
 const DISC_GRADIENTS = [
-  'from-red-400 to-red-600',
-  'from-orange-400 to-orange-600',
-  'from-yellow-400 to-yellow-600',
-  'from-green-400 to-green-600',
-  'from-blue-400 to-blue-600',
-  'from-indigo-400 to-indigo-600',
-  'from-purple-400 to-purple-600',
-  'from-pink-400 to-pink-600',
+  'from-red-500 to-red-700',
+  'from-orange-500 to-orange-700',
+  'from-amber-400 to-amber-600',
+  'from-emerald-500 to-emerald-700',
+  'from-blue-500 to-blue-700',
+  'from-indigo-500 to-indigo-700',
+  'from-purple-500 to-purple-700',
+  'from-pink-500 to-pink-700',
+];
+
+const DISC_SHADOWS = [
+  'shadow-red-500/30',
+  'shadow-orange-500/30',
+  'shadow-amber-500/30',
+  'shadow-emerald-500/30',
+  'shadow-blue-500/30',
+  'shadow-indigo-500/30',
+  'shadow-purple-500/30',
+  'shadow-pink-500/30',
 ];
 
 export function TowerHanoiBoard({ difficulty, seed, onComplete, onFail }: TowerHanoiBoardProps) {
@@ -84,19 +95,19 @@ export function TowerHanoiBoard({ difficulty, seed, onComplete, onFail }: TowerH
   return (
     <div className="space-y-4">
       {/* Story */}
-      <div className="glass-card rounded-2xl p-4 text-sm">
-        <p className="font-medium mb-2">{puzzle.story}</p>
-        <ul className="space-y-1 text-[var(--text-secondary)]">
+      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 text-sm">
+        <p className="font-medium mb-2 text-slate-100">{puzzle.story}</p>
+        <ul className="space-y-1 text-slate-400">
           {puzzle.rules.map((rule, i) => (
-            <li key={i} className="flex gap-2"><span className="text-primary">•</span>{rule}</li>
+            <li key={i} className="flex gap-2"><span className="text-blue-400">•</span>{rule}</li>
           ))}
         </ul>
       </div>
 
       {/* Goal */}
-      <div className="bg-emerald-500/10 border border-emerald-400/30 rounded-2xl p-3 text-sm backdrop-blur-sm">
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400">목표: </span>
-        <span className="text-[var(--text-secondary)]">
+      <div className="bg-emerald-500/10 border border-emerald-400/20 rounded-2xl p-3 text-sm backdrop-blur-md">
+        <span className="font-semibold text-emerald-400">목표: </span>
+        <span className="text-slate-400">
           {puzzle.goalState.map((peg, i) =>
             peg.length > 0 ? `기둥 ${i + 1}: [${peg.join(',')}]` : null
           ).filter(Boolean).join(' / ')}
@@ -117,30 +128,31 @@ export function TowerHanoiBoard({ difficulty, seed, onComplete, onFail }: TowerH
               onClick={() => handlePegClick(pegIdx)}
               className={`flex flex-col items-center cursor-pointer p-3 rounded-2xl transition-all duration-200 ${
                 isSelected
-                  ? 'ring-2 ring-blue-400 bg-blue-500/10 shadow-lg shadow-blue-500/10'
+                  ? 'ring-2 ring-blue-400/60 bg-blue-500/10 shadow-lg shadow-blue-500/15'
                   : isGoalPeg
-                    ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                    : 'hover:bg-[var(--bg-secondary)]'
+                    ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10'
+                    : 'hover:bg-white/5 border border-transparent'
               }`}
             >
-              <div className="text-xs font-bold text-[var(--text-secondary)] mb-2">
+              <div className="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">
                 기둥 {pegIdx + 1}
               </div>
 
               <div className="relative flex flex-col-reverse items-center" style={{ minHeight: `${maxDiscs * 30 + 24}px` }}>
                 {/* Peg rod */}
                 <div
-                  className="absolute bottom-0 w-2 bg-gradient-to-b from-stone-400 to-stone-500 dark:from-stone-500 dark:to-stone-600 rounded-full"
+                  className="absolute bottom-0 w-2 bg-gradient-to-b from-slate-500 to-slate-600 rounded-full shadow-inner"
                   style={{ height: `${maxDiscs * 30 + 16}px` }}
                 />
 
                 {/* Base */}
-                <div className="w-28 h-2.5 bg-gradient-to-r from-stone-400 via-stone-500 to-stone-400 dark:from-stone-500 dark:via-stone-600 dark:to-stone-500 rounded-full relative z-10 shadow-md" />
+                <div className="w-28 h-2.5 bg-gradient-to-r from-slate-600 via-slate-500 to-slate-600 rounded-full relative z-10 shadow-lg" />
 
                 {/* Discs */}
                 <AnimatePresence>
                   {peg.map((disc) => {
                     const width = 32 + disc * 14;
+                    const gradIdx = (disc - 1) % DISC_GRADIENTS.length;
                     return (
                       <motion.div
                         key={`${pegIdx}-${disc}`}
@@ -149,7 +161,7 @@ export function TowerHanoiBoard({ difficulty, seed, onComplete, onFail }: TowerH
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.8, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                        className={`relative z-10 h-7 rounded-xl bg-gradient-to-r ${DISC_GRADIENTS[(disc - 1) % DISC_GRADIENTS.length]} shadow-lg flex items-center justify-center mb-0.5`}
+                        className={`relative z-10 h-7 rounded-xl bg-gradient-to-r ${DISC_GRADIENTS[gradIdx]} shadow-lg ${DISC_SHADOWS[gradIdx]} flex items-center justify-center mb-0.5 border border-white/10`}
                         style={{ width: `${width}px` }}
                       >
                         <span className="text-white text-xs font-bold drop-shadow">{disc}</span>
@@ -166,19 +178,24 @@ export function TowerHanoiBoard({ difficulty, seed, onComplete, onFail }: TowerH
       {/* Actions */}
       <div className="flex flex-wrap gap-3 justify-center">
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
-          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
+          className="px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold disabled:opacity-30 hover:bg-white/10 transition-all border border-white/5">
           되돌리기
         </motion.button>
         <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
-          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
+          className="px-5 py-3 rounded-2xl bg-white/5 backdrop-blur-sm text-slate-400 font-semibold hover:bg-white/10 transition-all border border-white/5">
           처음부터
         </motion.button>
       </div>
 
-      <div className="text-center text-sm text-[var(--text-secondary)]">
-        이동: <span className="font-bold text-[var(--text)]">{state.steps}</span>
-        {' / 최적: '}
-        <span className="font-bold text-primary">{puzzle.optimalSteps}</span>
+      {/* Steps pill */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center gap-3 px-5 py-2 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-sm">
+          <span className="text-slate-400">이동</span>
+          <span className="font-bold text-slate-100 tabular-nums">{state.steps}</span>
+          <span className="text-slate-500">/</span>
+          <span className="text-slate-400">최적</span>
+          <span className="font-bold text-blue-400 tabular-nums">{puzzle.optimalSteps}</span>
+        </div>
       </div>
     </div>
   );
