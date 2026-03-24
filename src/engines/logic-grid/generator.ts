@@ -2,17 +2,27 @@ import { SeededRandom } from '../seeded-random';
 import { BasePuzzle } from '../types';
 import { solveLogicGrid } from './solver';
 
+export type LogicVariant = 'basic' | 'ordering' | 'liar' | 'conditional';
+
 export type LogicClue = {
-  type: 'direct_match' | 'negation' | 'relation_negation' | 'ordering' | 'adjacent';
+  type: 'direct_match' | 'negation' | 'relation_negation' | 'ordering' | 'adjacent' | 'liar' | 'conditional';
   text: string;
   data: Record<string, string>;
 };
 
 export interface LogicGridPuzzle extends BasePuzzle {
   category: 'logic-grid';
+  variant: LogicVariant;
   gridSize: number;
   categories: { id: string; name: string; items: string[] }[];
   clues: LogicClue[];
+  // ordering variant: one category has a numeric ordering
+  orderingCategory?: string; // category id that has ordering
+  orderingValues?: number[]; // ordered values for each item index in that category
+  // liar variant: one clue is false
+  liarClueIndex?: number; // index of the false clue
+  // conditional variant: some clues only apply if a condition is met
+  conditionalClues?: { condition: LogicClue; then: LogicClue }[];
   solution: Record<string, Record<string, string>>;
 }
 
@@ -33,6 +43,13 @@ const CATEGORY_TEMPLATES = [
   { id: 'pet', name: '반려동물', pool: PET_POOL },
   { id: 'city', name: '출신 도시', pool: CITY_POOL },
 ];
+
+function getVariant(difficulty: number, rng: SeededRandom): LogicVariant {
+  if (difficulty <= 3) return 'basic';
+  if (difficulty <= 5) return rng.pick(['basic', 'ordering']);
+  if (difficulty <= 7) return rng.pick(['ordering', 'liar']);
+  return rng.pick(['liar', 'conditional']);
+}
 
 function getGridSize(difficulty: number): number {
   if (difficulty <= 3) return 3;
@@ -56,6 +73,18 @@ function generateClueText(clue: LogicClue): string {
       return `${d.itemA}은(는) ${d.itemB}이(가) 아닙니다.`;
     case 'relation_negation':
       return `${d.itemA}은(는) ${d.itemB}이(가) 아닙니다.`;
+    case 'ordering':
+      if (d.relation === 'before') {
+        return `${d.itemA}은(는) ${d.itemB}보다 앞 순서입니다.`;
+      } else if (d.relation === 'after') {
+        return `${d.itemA}은(는) ${d.itemB}보다 뒤 순서입니다.`;
+      } else {
+        return `${d.itemA}은(는) ${d.itemB}과(와) 인접합니다.`;
+      }
+    case 'liar':
+      return `🤥 [거짓 가능] ${d.text}`;
+    case 'conditional':
+      return `만약 ${d.condition}이라면, ${d.then}`;
     default:
       return '';
   }
@@ -66,6 +95,7 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
+    const variant = getVariant(difficulty, rng);
     const gridSize = getGridSize(difficulty);
     const catCount = getCategoryCount(difficulty);
 
@@ -85,7 +115,6 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     const solution: Record<string, Record<string, string>> = {};
     const primaryItems = categories[0].items;
 
-    // For each non-primary category, create a random mapping
     const mappings: Record<string, string[]> = {};
     for (let i = 1; i < categories.length; i++) {
       mappings[categories[i].id] = rng.shuffle(categories[i].items);
@@ -112,14 +141,12 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
           const itemA = solution[person][catA.id];
           const itemB = solution[person][catB.id];
 
-          // Direct match
           allClues.push({
             type: 'direct_match',
             text: '',
             data: { catA: catA.id, itemA, catB: catB.id, itemB },
           });
 
-          // Negation clues (wrong pairings)
           for (const otherPerson of primaryItems) {
             if (otherPerson === person) continue;
             const otherItemB = solution[otherPerson][catB.id];
@@ -133,22 +160,55 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       }
     }
 
-    // Shuffle all clues
+    // Ordering clues for ordering variant
+    if (variant === 'ordering') {
+      const orderingCatIdx = rng.int(1, categories.length - 1);
+      const orderingCat = categories[orderingCatIdx];
+      // Assign ordering values based on solution row
+      const orderValues: number[] = [];
+      for (let row = 0; row < gridSize; row++) {
+        orderValues.push(row + 1);
+      }
+
+      for (let i = 0; i < gridSize; i++) {
+        for (let j = i + 1; j < gridSize; j++) {
+          const personI = primaryItems[i];
+          const personJ = primaryItems[j];
+          const itemI = solution[personI][orderingCat.id];
+          const itemJ = solution[personJ][orderingCat.id];
+
+          allClues.push({
+            type: 'ordering',
+            text: '',
+            data: {
+              catA: categories[0].id, itemA: personI,
+              catB: categories[0].id, itemB: personJ,
+              relation: 'before',
+              orderCat: orderingCat.id,
+            },
+          });
+        }
+      }
+    }
+
     const shuffledClues = rng.shuffle(allClues);
 
-    // Step 3: Find a minimal set of clues that gives a unique solution
-    // Start with all direct_match clues (as base) then remove one by one
+    // Step 3: Select clues
     const directClues = shuffledClues.filter(c => c.type === 'direct_match');
     const negationClues = shuffledClues.filter(c => c.type === 'negation');
+    const orderingClues = shuffledClues.filter(c => c.type === 'ordering');
 
-    // Begin with a small set of direct clues and add negation clues as needed
     let selectedClues: LogicClue[] = [];
 
-    // Try using a mix of direct and negation clues
-    // For easier puzzles, use more direct clues
     const directCount = Math.max(1, Math.floor(gridSize * (catCount - 1) * (difficulty <= 3 ? 0.6 : 0.3)));
     const directSubset = directClues.slice(0, directCount);
     selectedClues.push(...directSubset);
+
+    // Add ordering clues if present
+    if (orderingClues.length > 0) {
+      const orderCount = Math.min(2, orderingClues.length);
+      selectedClues.push(...orderingClues.slice(0, orderCount));
+    }
 
     // Add negation clues until we have a unique solution
     for (const clue of negationClues) {
@@ -158,6 +218,7 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
         seed,
         difficulty,
         category: 'logic-grid',
+        variant,
         optimalSteps: 0,
         story: '',
         rules: [],
@@ -173,16 +234,77 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     }
 
     // Generate clue texts
-    const finalClues = selectedClues.map(c => ({
+    let finalClues = selectedClues.map(c => ({
       ...c,
       text: generateClueText(c),
     }));
+
+    // Liar variant: mark one clue as potentially false
+    let liarClueIndex: number | undefined;
+    if (variant === 'liar' && finalClues.length >= 3) {
+      // Pick a negation clue and make it a liar (actually true — but we flip it to confuse)
+      const negIdxes = finalClues
+        .map((c, i) => c.type === 'negation' ? i : -1)
+        .filter(i => i >= 0);
+      if (negIdxes.length > 0) {
+        liarClueIndex = rng.pick(negIdxes);
+        // The liar clue is marked. It is still a valid clue, but the player
+        // is told "one of these clues might be false" — actually all clues are
+        // true, but the liar-marked one is presented with the 🤥 label to add
+        // a red herring challenge. The player must figure out which clue is
+        // the "suspected liar" and verify it's actually true.
+        finalClues[liarClueIndex] = {
+          ...finalClues[liarClueIndex],
+          type: 'liar' as const,
+          text: `🤥 [거짓 가능] ${finalClues[liarClueIndex].text}`,
+          data: { ...finalClues[liarClueIndex].data, text: finalClues[liarClueIndex].text },
+        };
+      }
+    }
+
+    // Conditional variant: wrap some clues as conditionals
+    const conditionalClues: { condition: LogicClue; then: LogicClue }[] = [];
+    if (variant === 'conditional' && directClues.length >= 2) {
+      // Take 1-2 direct clues and make them conditional
+      const condCount = Math.min(2, Math.floor(finalClues.length / 3));
+      for (let ci = 0; ci < condCount && ci < finalClues.length; ci++) {
+        const thenClue = finalClues[ci];
+        if (thenClue.type !== 'direct_match') continue;
+        // Create a condition that is true (so the "then" clue still holds)
+        const condDirect = directClues.find(dc =>
+          dc.data.itemA !== thenClue.data.itemA && dc.data.itemB !== thenClue.data.itemB
+        );
+        if (condDirect) {
+          conditionalClues.push({
+            condition: { ...condDirect, text: generateClueText(condDirect) },
+            then: thenClue,
+          });
+          finalClues[ci] = {
+            type: 'conditional',
+            text: `만약 ${condDirect.data.itemA}이(가) ${condDirect.data.itemB}이라면, ${thenClue.data.itemA}은(는) ${thenClue.data.itemB}입니다.`,
+            data: {
+              condition: `${condDirect.data.itemA}이(가) ${condDirect.data.itemB}`,
+              then: `${thenClue.data.itemA}은(는) ${thenClue.data.itemB}`,
+              condCatA: condDirect.data.catA,
+              condItemA: condDirect.data.itemA,
+              condCatB: condDirect.data.catB,
+              condItemB: condDirect.data.itemB,
+              thenCatA: thenClue.data.catA,
+              thenItemA: thenClue.data.itemA,
+              thenCatB: thenClue.data.catB,
+              thenItemB: thenClue.data.itemB,
+            },
+          };
+        }
+      }
+    }
 
     // Verify the final puzzle has a unique solution
     const puzzle: LogicGridPuzzle = {
       seed,
       difficulty,
       category: 'logic-grid',
+      variant,
       optimalSteps: finalClues.length,
       story: '',
       rules: [],
@@ -190,6 +312,8 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       gridSize,
       categories,
       clues: finalClues,
+      liarClueIndex: variant === 'liar' ? liarClueIndex : undefined,
+      conditionalClues: variant === 'conditional' ? conditionalClues : undefined,
       solution,
     };
 
@@ -200,12 +324,11 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     const minimized = [...finalClues];
     const toTry = rng.shuffle([...Array(minimized.length).keys()]);
     for (const idx of toTry) {
-      if (minimized.length <= gridSize) break; // don't go below gridSize clues
+      if (minimized.length <= gridSize) break;
       const removed = minimized.splice(idx, 1)[0];
       const testPuzzle2: LogicGridPuzzle = { ...puzzle, clues: minimized };
       const testResult = solveLogicGrid(testPuzzle2);
       if (!testResult.uniqueSolution) {
-        // Put it back
         minimized.splice(idx, 0, removed);
       }
     }
@@ -227,7 +350,11 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
 
     // Generate story
     const catNames = categories.map(c => c.name).join(', ');
-    puzzle.story = `${gridSize}명의 사람들에 대한 정보를 논리적으로 추리하세요. 각 사람의 ${catNames}을(를) 단서를 통해 알아내야 합니다.`;
+    let storyExtra = '';
+    if (variant === 'ordering') storyExtra = ' 순서 관계 단서도 포함되어 있습니다!';
+    if (variant === 'liar') storyExtra = ' ⚠️ 단서 중 하나가 거짓일 수 있습니다!';
+    if (variant === 'conditional') storyExtra = ' ⚠️ 일부 단서는 조건부입니다!';
+    puzzle.story = `${gridSize}명의 사람들에 대한 정보를 논리적으로 추리하세요. 각 사람의 ${catNames}을(를) 단서를 통해 알아내야 합니다.${storyExtra}`;
 
     puzzle.rules = [
       `${gridSize}명의 사람과 ${catCount}개의 범주가 있습니다.`,
@@ -235,6 +362,16 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       '단서를 분석하여 모든 조합을 찾으세요.',
       '확실한 것부터 표시하고, 소거법을 활용하세요.',
     ];
+
+    if (variant === 'ordering') {
+      puzzle.rules.push('⚠️ 순서 단서: "A가 B보다 앞 순서" = A의 번호가 B보다 작음');
+    }
+    if (variant === 'liar') {
+      puzzle.rules.push('⚠️ 🤥 표시된 단서는 거짓일 수 있습니다. 다른 단서로 검증하세요!');
+    }
+    if (variant === 'conditional') {
+      puzzle.rules.push('⚠️ 조건부 단서: 조건이 참일 때만 결론이 성립합니다.');
+    }
 
     puzzle.hints = [
       `총 ${minimized.length}개의 단서가 있습니다.`,
@@ -244,6 +381,15 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       puzzle.hints.push(`"~은(는) ~이다" 형태의 직접 단서부터 시작하세요.`);
     }
     puzzle.hints.push('소거법: 한 칸이 확정되면 같은 행과 열의 나머지를 제거하세요.');
+    if (variant === 'liar') {
+      puzzle.hints.push('먼저 확실한 단서들로 격자를 채운 뒤, 의심 단서를 검증하세요.');
+    }
+    if (variant === 'conditional') {
+      puzzle.hints.push('조건부 단서의 조건을 먼저 확인하세요.');
+    }
+    if (variant === 'ordering') {
+      puzzle.hints.push('순서 관계를 이용해 가능한 위치를 좁히세요.');
+    }
 
     return puzzle;
   }
@@ -263,6 +409,7 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     seed,
     difficulty,
     category: 'logic-grid',
+    variant: 'basic',
     optimalSteps: 4,
     story: '3명의 사람들의 직업과 좋아하는 색을 알아내세요.',
     rules: [

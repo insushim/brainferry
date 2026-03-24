@@ -67,7 +67,7 @@ export function setMark(
   const key = getGridKey(state, catA, catB);
   if (!key) return state;
 
-  const [keyCatA, keyCatB] = key.split(':');
+  const [keyCatA] = key.split(':');
   let rowItem: string;
   let colItem: string;
 
@@ -106,9 +106,9 @@ export function setMark(
   autoComplete(newGrid, key);
 
   const move: LogicGridMove = {
-    catA: keyCatA,
+    catA: key.split(':')[0],
     itemA: rowItem,
-    catB: keyCatB,
+    catB: key.split(':')[1],
     itemB: colItem,
     mark,
     previousMark,
@@ -141,7 +141,6 @@ function autoComplete(
     const unknowns = cols.filter(c => subGrid[row][c] === 'unknown');
     if (unknowns.length === 1) {
       subGrid[row][unknowns[0]] = 'true';
-      // Eliminate column
       for (const otherRow of rows) {
         if (otherRow !== row) {
           subGrid[otherRow][unknowns[0]] = 'false';
@@ -155,7 +154,6 @@ function autoComplete(
     const unknowns = rows.filter(r => subGrid[r][col] === 'unknown');
     if (unknowns.length === 1) {
       subGrid[unknowns[0]][col] = 'true';
-      // Eliminate row
       for (const otherCol of cols) {
         if (otherCol !== col) {
           subGrid[unknowns[0]][otherCol] = 'false';
@@ -192,11 +190,9 @@ function checkComplete(
       if (!subGrid) return false;
 
       if (grid[key1]) {
-        // rows = primaryCat items, cols = cat items
         const trueCol = Object.entries(subGrid[item]).find(([, v]) => v === 'true');
         if (!trueCol || trueCol[0] !== expected[cat.id]) return false;
       } else {
-        // rows = cat items, cols = primaryCat items
         for (const [catItem, marks] of Object.entries(subGrid)) {
           if (marks[item] === 'true' && catItem !== expected[cat.id]) return false;
         }

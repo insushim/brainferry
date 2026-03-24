@@ -10,6 +10,7 @@ import {
   type BodyguardState,
 } from '@/engines/bodyguard/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { Shield, ArrowRight } from 'lucide-react';
 
 interface BodyguardBoardProps {
   difficulty: number;
@@ -98,7 +99,8 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -107,19 +109,27 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
         </ul>
       </div>
 
-      {/* Pair relationships */}
-      <div className="bg-accent/10 border border-accent/20 rounded-xl p-3">
-        <span className="text-xs font-bold text-accent">보호 관계:</span>
-        <div className="flex flex-wrap gap-2 mt-1">
+      {/* Protection pairs */}
+      <div className="bg-emerald-500/10 border border-emerald-400/30 rounded-2xl p-4 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="w-4 h-4 text-emerald-500" />
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">보호 관계</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
           {puzzle.pairs.map((pair, i) => (
-            <span key={i} className="text-sm bg-[var(--bg-secondary)] rounded-lg px-2 py-1">
-              {pair.protector.emoji}{pair.protector.name} → {pair.charge.emoji}{pair.charge.name}
+            <span key={i} className="inline-flex items-center gap-1.5 text-sm bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-white/30 dark:border-white/10 shadow-sm">
+              <span className="text-lg">{pair.protector.emoji}</span>
+              <span className="font-medium">{pair.protector.name}</span>
+              <ArrowRight className="w-3 h-3 text-[var(--text-secondary)]" />
+              <span className="text-lg">{pair.charge.emoji}</span>
+              <span className="font-medium">{pair.charge.name}</span>
             </span>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-stretch gap-4 min-h-[200px]">
+      {/* Board */}
+      <div className="flex flex-col md:flex-row items-stretch gap-0 min-h-[220px] rounded-2xl overflow-hidden shadow-lg shadow-black/5">
         <EntityBank
           label="이쪽"
           entities={state.leftSide}
@@ -130,20 +140,29 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
           failed={state.isFailed && state.boatPosition !== 'left'}
         />
 
-        <div className="flex-shrink-0 relative flex items-center justify-center md:w-32 h-28 md:h-auto">
-          <div className="absolute inset-0 water-surface rounded-xl" />
+        {/* River + Boat */}
+        <div className="flex-shrink-0 relative flex items-center justify-center md:w-36 h-32 md:h-auto">
+          <div className="absolute inset-0 water-surface" />
           <motion.div
             animate={{ x: state.boatPosition === 'left' ? -15 : 15 }}
-            className="relative z-10 bg-amber-800/90 rounded-xl p-3 border-2 border-amber-700"
+            transition={{ type: 'spring', stiffness: 100, damping: 18 }}
+            className="relative z-10 animate-boat-rock"
           >
-            <div className="text-xl text-center">🚣</div>
-            <div className="flex gap-1 justify-center mt-1 min-h-[28px]">
-              {[...selected].map((id) => {
-                const entity = entityMap.get(id);
-                return entity ? (
-                  <span key={id} className="text-lg">{entity.emoji}</span>
-                ) : null;
-              })}
+            <div
+              className="bg-gradient-to-b from-amber-700 to-amber-900 rounded-xl p-3 border-2 border-amber-600/60 shadow-2xl"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 14px, rgba(0,0,0,0.06) 14px, rgba(0,0,0,0.06) 16px)',
+              }}
+            >
+              <div className="text-xl text-center">🚣</div>
+              <div className="flex gap-1 justify-center mt-1.5 min-h-[32px]">
+                {[...selected].map((id) => {
+                  const entity = entityMap.get(id);
+                  return entity ? (
+                    <span key={id} className="text-lg">{entity.emoji}</span>
+                  ) : null;
+                })}
+              </div>
             </div>
           </motion.div>
         </div>
@@ -159,27 +178,28 @@ export function BodyguardBoard({ difficulty, seed, onComplete, onFail }: Bodygua
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={handleSail}
           disabled={isMoving || selected.size === 0 || state.isComplete}
-          className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold disabled:opacity-40 hover:bg-primary-dark transition-colors"
+          className={`px-8 py-3 rounded-xl text-white font-bold disabled:opacity-40 shadow-lg transition-all ${
+            selected.size > 0 && !state.isComplete
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25 animate-pulse-button'
+              : 'bg-gradient-to-r from-blue-500 to-blue-600 shadow-blue-500/25'
+          }`}
         >
           출발! 🚣
-        </button>
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">
@@ -209,11 +229,14 @@ function EntityBank({
   failed: boolean;
 }) {
   return (
-    <div className={`flex-1 rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[80px] ${
-      failed ? 'animate-shake animate-red-flash' : ''
-    } ${active ? 'bg-green-500/10 border-2 border-green-500/30' : 'bg-[var(--bg-secondary)] border-2 border-transparent'}`}>
-      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase">{label}</span>
-      <div className="flex flex-wrap gap-2 justify-center">
+    <div className={`flex-1 p-5 flex flex-col items-center justify-center gap-3 min-h-[100px] transition-all duration-300 ${
+      failed ? 'animate-shake' : ''
+    } ${active
+      ? 'grass-bank shadow-inner'
+      : 'bg-gradient-to-b from-green-900/30 to-green-800/20 dark:from-green-950/30'
+    }`}>
+      <span className="text-xs font-bold text-white/70 uppercase tracking-wider">{label}</span>
+      <div className="flex flex-wrap gap-2.5 justify-center">
         <AnimatePresence>
           {entities.map((id) => {
             const entity = entityMap.get(id);
@@ -226,19 +249,25 @@ function EntityBank({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
+                whileHover={onToggle ? { scale: 1.08, y: -3 } : undefined}
+                whileTap={onToggle ? { scale: 0.92 } : undefined}
                 onClick={() => onToggle?.(id)}
-                className={`flex flex-col items-center p-1.5 rounded-xl transition-all ${
+                className={`flex flex-col items-center p-2 rounded-2xl transition-all duration-200 min-w-[56px] ${
                   onToggle ? 'cursor-pointer' : 'cursor-default'
                 } ${isSelected
-                  ? 'bg-primary/20 border-2 border-primary'
+                  ? 'bg-blue-500/20 border-2 border-blue-400 ring-2 ring-blue-400/30 shadow-lg shadow-blue-500/10'
                   : entity.role === 'protector'
-                    ? 'bg-[var(--card)] border-2 border-success/40'
-                    : 'bg-[var(--card)] border-2 border-[var(--border)]'
+                    ? 'bg-white/80 dark:bg-slate-800/80 border-2 border-emerald-400/40 backdrop-blur-sm shadow-md'
+                    : 'bg-white/80 dark:bg-slate-800/80 border-2 border-white/30 dark:border-white/10 backdrop-blur-sm shadow-md'
                 }`}
               >
-                <span className="text-xl">{entity.emoji}</span>
-                <span className="text-[10px] font-medium">{entity.name}</span>
-                <span className={`text-[9px] ${entity.role === 'protector' ? 'text-success' : 'text-[var(--text-secondary)]'}`}>
+                <span className="text-2xl">{entity.emoji}</span>
+                <span className="text-[10px] font-semibold mt-0.5">{entity.name}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full mt-0.5 font-semibold ${
+                  entity.role === 'protector'
+                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
+                }`}>
                   {entity.role === 'protector' ? '보디가드' : '피보호'}
                 </span>
               </motion.button>

@@ -1,11 +1,6 @@
 import { bfsSolve, SolverResult } from '../bfs-solver';
 import type { BodyguardPuzzle, BodyguardMove } from './generator';
 
-interface BodyguardSolverState {
-  leftSide: Set<string>; // all entity ids on left
-  boatPosition: 'left' | 'right';
-}
-
 interface SerializableState {
   left: string[];
   boatPosition: 'left' | 'right';
@@ -26,27 +21,89 @@ function getCombinations(arr: string[], min: number, max: number): string[][] {
   return results;
 }
 
+/**
+ * Build the effective protection map considering double-agent variant.
+ * Returns a map: chargeId -> actual protectorId
+ */
+function getProtectionMap(puzzle: BodyguardPuzzle): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const pair of puzzle.pairs) {
+    map.set(pair.charge.id, pair.protector.id);
+  }
+
+  // Double-agent: reassign the agent's protection
+  if (puzzle.variant === 'double-agent' && puzzle.doubleAgentId !== undefined && puzzle.doubleAgentTargetPair !== undefined) {
+    const agentId = puzzle.doubleAgentId;
+    const targetCharge = puzzle.pairs[puzzle.doubleAgentTargetPair].charge.id;
+
+    // Find which charge originally belonged to the double agent
+    let originalCharge: string | undefined;
+    for (const pair of puzzle.pairs) {
+      if (pair.protector.id === agentId) {
+        originalCharge = pair.charge.id;
+        break;
+      }
+    }
+
+    if (originalCharge) {
+      // The agent now protects the target charge instead
+      map.set(targetCharge, agentId);
+      // The original charge has NO protector
+      map.delete(originalCharge);
+    }
+  }
+
+  return map;
+}
+
 function isStateValid(
   bankIds: Set<string>,
-  pairs: BodyguardPuzzle['pairs']
+  puzzle: BodyguardPuzzle,
+  protectionMap: Map<string, string>
 ): boolean {
-  // A charge cannot be with another protector without their own protector
-  for (const pair of pairs) {
-    const chargeId = pair.charge.id;
-    const protectorId = pair.protector.id;
+  if (bankIds.size === 0) return true;
 
-    if (!bankIds.has(chargeId)) continue; // charge not on this bank
-    if (bankIds.has(protectorId)) continue; // protector is present, safe
+  // Basic protection rule (with double-agent adjustment)
+  const allChargeIds = puzzle.pairs.map(p => p.charge.id);
+  const allProtectorIds = puzzle.pairs.map(p => p.protector.id);
 
-    // Charge is alone (without own protector).
-    // If any OTHER protector is present, it's a violation.
-    for (const otherPair of pairs) {
-      if (otherPair === pair) continue;
-      if (bankIds.has(otherPair.protector.id)) {
+  for (const chargeId of allChargeIds) {
+    if (!bankIds.has(chargeId)) continue;
+
+    const myProtector = protectionMap.get(chargeId);
+
+    if (myProtector && bankIds.has(myProtector)) continue; // protector present, safe
+
+    // Charge without protector (or has no protector at all in double-agent case)
+    // If any OTHER protector is present, it's a violation
+    for (const protId of allProtectorIds) {
+      if (protId === myProtector) continue;
+      if (bankIds.has(protId)) {
+        // Hierarchy variant: only dangerous if the other protector has higher rank
+        if (puzzle.variant === 'hierarchy' && puzzle.protectorRanks) {
+          const otherPairIdx = puzzle.pairs.findIndex(p => p.protector.id === protId);
+          const chargePairIdx = puzzle.pairs.findIndex(p => p.charge.id === chargeId);
+          if (otherPairIdx >= 0 && chargePairIdx >= 0) {
+            const otherRank = puzzle.protectorRanks[otherPairIdx];
+            const myRank = puzzle.protectorRanks[chargePairIdx];
+            // Only dangerous if other protector outranks this charge's protector
+            if (otherRank <= myRank) continue; // not dangerous
+          }
+        }
         return false;
       }
     }
   }
+
+  // Exclusive pairs check
+  if (puzzle.variant === 'exclusive' && puzzle.exclusivePairs) {
+    for (const ep of puzzle.exclusivePairs) {
+      if (bankIds.has(ep.idA) && bankIds.has(ep.idB)) {
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
@@ -57,7 +114,7 @@ export function solveBodyguard(puzzle: BodyguardPuzzle): SolverResult<BodyguardM
   }
 
   const driverSet = puzzle.driverIds ? new Set(puzzle.driverIds) : null;
-
+  const protectionMap = getProtectionMap(puzzle);
   const initialLeft = new Set(allIds);
 
   return bfsSolve<SerializableState, BodyguardMove>({
@@ -69,8 +126,8 @@ export function solveBodyguard(puzzle: BodyguardPuzzle): SolverResult<BodyguardM
     isFailed: (state) => {
       const leftSet = new Set(state.left);
       const rightSet = new Set(allIds.filter(id => !leftSet.has(id)));
-      if (leftSet.size > 0 && !isStateValid(leftSet, puzzle.pairs)) return true;
-      if (rightSet.size > 0 && !isStateValid(rightSet, puzzle.pairs)) return true;
+      if (leftSet.size > 0 && !isStateValid(leftSet, puzzle, protectionMap)) return true;
+      if (rightSet.size > 0 && !isStateValid(rightSet, puzzle, protectionMap)) return true;
       return false;
     },
     getMoves: (state) => {

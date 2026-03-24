@@ -2,12 +2,14 @@ import { bfsSolve, SolverResult } from '../bfs-solver';
 import type { WaterJugPuzzle, JugMove } from './generator';
 
 interface JugSolverState {
-  levels: number[]; // current water level for each jug
+  levels: number[];
 }
 
 export function solveWaterJug(puzzle: WaterJugPuzzle): SolverResult<JugMove> {
   const jugCount = puzzle.jugs.length;
   const capacities = puzzle.jugs.map(j => j.capacity);
+  const leakyIdx = puzzle.leakyJugId ? puzzle.jugs.findIndex(j => j.id === puzzle.leakyJugId) : -1;
+  const leakAmount = puzzle.leakAmount ?? 0;
 
   const initialState: JugSolverState = {
     levels: new Array(jugCount).fill(0),
@@ -16,6 +18,12 @@ export function solveWaterJug(puzzle: WaterJugPuzzle): SolverResult<JugMove> {
   return bfsSolve<JugSolverState, JugMove>({
     initialState,
     isGoal: (state) => {
+      if (puzzle.variant === 'mixing' && puzzle.mixTargets) {
+        return puzzle.mixTargets.every(mt => {
+          const idx = puzzle.jugs.findIndex(j => j.id === mt.jugId);
+          return idx >= 0 && state.levels[idx] === mt.amount;
+        });
+      }
       if (puzzle.targetJug) {
         const jugIdx = puzzle.jugs.findIndex(j => j.id === puzzle.targetJug);
         return jugIdx >= 0 && state.levels[jugIdx] === puzzle.target;
@@ -26,17 +34,23 @@ export function solveWaterJug(puzzle: WaterJugPuzzle): SolverResult<JugMove> {
       const moves: JugMove[] = [];
 
       for (let i = 0; i < jugCount; i++) {
-        // Fill jug i
         if (state.levels[i] < capacities[i]) {
           moves.push({ action: 'fill', jugId: puzzle.jugs[i].id });
         }
-        // Empty jug i
         if (state.levels[i] > 0) {
           moves.push({ action: 'empty', jugId: puzzle.jugs[i].id });
         }
-        // Pour from i to j
         for (let j = 0; j < jugCount; j++) {
           if (i === j) continue;
+
+          // Mixing variant: check color compatibility
+          if (puzzle.variant === 'mixing') {
+            const fromColor = puzzle.jugs[i].color;
+            const toColor = puzzle.jugs[j].color;
+            // Can't pour into a jug of different color (unless target is uncolored)
+            if (fromColor && toColor && fromColor !== toColor) continue;
+          }
+
           if (state.levels[i] > 0 && state.levels[j] < capacities[j]) {
             moves.push({ action: 'pour', from: puzzle.jugs[i].id, to: puzzle.jugs[j].id });
           }
@@ -59,6 +73,11 @@ export function solveWaterJug(puzzle: WaterJugPuzzle): SolverResult<JugMove> {
         const pourAmount = Math.min(newLevels[fromIdx], capacities[toIdx] - newLevels[toIdx]);
         newLevels[fromIdx] -= pourAmount;
         newLevels[toIdx] += pourAmount;
+      }
+
+      // Apply leak after action
+      if (puzzle.variant === 'leaky' && leakyIdx >= 0 && leakAmount > 0) {
+        newLevels[leakyIdx] = Math.max(0, newLevels[leakyIdx] - leakAmount);
       }
 
       return { levels: newLevels };

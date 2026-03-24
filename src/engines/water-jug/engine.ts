@@ -1,7 +1,7 @@
 import type { WaterJugPuzzle, JugMove } from './generator';
 
 export interface WaterJugState {
-  levels: Record<string, number>; // jugId -> current level
+  levels: Record<string, number>;
   steps: number;
   moveHistory: JugMove[];
   isComplete: boolean;
@@ -48,6 +48,16 @@ export function applyMove(
       return { error: '알 수 없는 물통입니다.' };
     }
     if (newLevels[fromId] === 0) return { error: '붓는 물통이 비어 있습니다.' };
+
+    // Mixing check
+    if (puzzle.variant === 'mixing') {
+      const fromJug = puzzle.jugs.find(j => j.id === fromId);
+      const toJug = puzzle.jugs.find(j => j.id === toId);
+      if (fromJug?.color && toJug?.color && fromJug.color !== toJug.color) {
+        return { error: '서로 다른 색의 액체를 섞을 수 없습니다!' };
+      }
+    }
+
     const toCap = capacityMap.get(toId)!;
     const space = toCap - newLevels[toId];
     if (space === 0) return { error: '받는 물통이 가득 차 있습니다.' };
@@ -56,9 +66,19 @@ export function applyMove(
     newLevels[toId] += pourAmount;
   }
 
+  // Leaky jug: lose water after every action
+  if (puzzle.variant === 'leaky' && puzzle.leakyJugId && puzzle.leakAmount) {
+    const leakyId = puzzle.leakyJugId;
+    if (newLevels[leakyId] > 0) {
+      newLevels[leakyId] = Math.max(0, newLevels[leakyId] - puzzle.leakAmount);
+    }
+  }
+
   // Check completion
   let isComplete = false;
-  if (puzzle.targetJug) {
+  if (puzzle.variant === 'mixing' && puzzle.mixTargets) {
+    isComplete = puzzle.mixTargets.every(mt => newLevels[mt.jugId] === mt.amount);
+  } else if (puzzle.targetJug) {
     isComplete = newLevels[puzzle.targetJug] === puzzle.target;
   } else {
     isComplete = Object.values(newLevels).some(l => l === puzzle.target);

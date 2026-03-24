@@ -10,6 +10,7 @@ import {
   type SwitchLightState,
 } from '@/engines/switch-light/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { Power } from 'lucide-react';
 
 interface SwitchLightBoardProps {
   difficulty: number;
@@ -57,8 +58,9 @@ export function SwitchLightBoard({ difficulty, seed, onComplete, onFail }: Switc
   }, [puzzle, playClick]);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+    <div className="space-y-5">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -67,32 +69,40 @@ export function SwitchLightBoard({ difficulty, seed, onComplete, onFail }: Switc
         </ul>
       </div>
 
-      {/* Goal display */}
-      <div className="bg-success/10 border border-success/20 rounded-xl p-3 text-sm">
-        <span className="font-semibold text-success">목표: </span>
-        <span className="flex gap-1 mt-1">
+      {/* Goal */}
+      <div className="bg-emerald-500/10 border border-emerald-400/30 rounded-2xl p-4 backdrop-blur-sm">
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">목표: </span>
+        <div className="flex gap-2 mt-2">
           {puzzle.goalState.map((on, i) => (
-            <span key={i} className={`w-7 h-7 rounded-full flex items-center justify-center text-sm ${
-              on ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-700 text-gray-400'
+            <span key={i} className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+              on
+                ? 'bg-gradient-to-b from-yellow-300 to-amber-400 text-amber-900 shadow-lg shadow-yellow-400/40'
+                : 'bg-gray-700 text-gray-500 border border-gray-600'
             }`}>
               {i + 1}
             </span>
           ))}
-        </span>
+        </div>
       </div>
 
       {/* Lights */}
       <div className="text-center">
-        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-2">전등</div>
-        <div className="flex flex-wrap gap-3 justify-center">
+        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3 tracking-wider">전등</div>
+        <div className="flex flex-wrap gap-4 justify-center">
           {state.lightStates.map((on, i) => (
             <motion.div
               key={i}
-              animate={{ scale: on ? 1.1 : 1 }}
-              className={`w-14 h-14 rounded-full flex items-center justify-center text-xl border-2 transition-all ${
+              animate={{
+                scale: on ? 1.05 : 1,
+                boxShadow: on
+                  ? '0 0 30px rgba(250, 204, 21, 0.5), 0 0 60px rgba(250, 204, 21, 0.2)'
+                  : '0 0 0 rgba(0,0,0,0)',
+              }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl border-3 transition-all ${
                 on
-                  ? 'bg-yellow-400 border-yellow-500 shadow-lg shadow-yellow-400/50'
-                  : 'bg-gray-800 border-gray-600'
+                  ? 'bg-gradient-to-b from-yellow-300 to-amber-400 border-yellow-400'
+                  : 'bg-gray-800/80 border-gray-600 dark:bg-gray-900/80'
               }`}
             >
               {on ? '💡' : '⚫'}
@@ -102,26 +112,28 @@ export function SwitchLightBoard({ difficulty, seed, onComplete, onFail }: Switc
       </div>
 
       {/* Connection matrix */}
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3 text-xs">
-        <div className="font-bold text-[var(--text-secondary)] mb-2">연결 관계:</div>
+      <div className="glass-card rounded-2xl p-4">
+        <div className="font-bold text-[var(--text-secondary)] text-xs mb-3 uppercase tracking-wider">연결 관계</div>
         <div className="overflow-x-auto">
           <table className="mx-auto">
             <thead>
               <tr>
-                <th className="px-2 py-1" />
+                <th className="px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]" />
                 {Array.from({ length: puzzle.lightCount }, (_, i) => (
-                  <th key={i} className="px-2 py-1 text-center">전등{i + 1}</th>
+                  <th key={i} className="px-3 py-2 text-center text-xs font-semibold text-[var(--text-secondary)]">
+                    전등{i + 1}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: puzzle.switchCount }, (_, si) => (
-                <tr key={si}>
-                  <td className="px-2 py-1 font-medium">스위치{si + 1}</td>
+                <tr key={si} className="border-t border-[var(--border)]">
+                  <td className="px-3 py-2 font-semibold text-xs">스위치{si + 1}</td>
                   {Array.from({ length: puzzle.lightCount }, (_, li) => (
-                    <td key={li} className="px-2 py-1 text-center">
+                    <td key={li} className="px-3 py-2 text-center">
                       {puzzle.connections[si][li] ? (
-                        <span className="text-primary font-bold">O</span>
+                        <span className="inline-flex w-6 h-6 rounded-full bg-blue-500/20 text-blue-500 items-center justify-center text-xs font-bold">O</span>
                       ) : (
                         <span className="text-[var(--border)]">-</span>
                       )}
@@ -136,38 +148,34 @@ export function SwitchLightBoard({ difficulty, seed, onComplete, onFail }: Switc
 
       {/* Switches */}
       <div className="text-center">
-        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-2">스위치</div>
+        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3 tracking-wider">스위치</div>
         <div className="flex flex-wrap gap-3 justify-center">
           {Array.from({ length: puzzle.switchCount }, (_, i) => (
             <motion.button
               key={i}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.08, y: -3 }}
               onClick={() => handleSwitch(i)}
               disabled={state.isComplete}
-              className="w-16 h-16 rounded-xl bg-[var(--card)] border-2 border-[var(--border)] flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:shadow-lg transition-all disabled:opacity-50"
+              className="w-[60px] h-[60px] rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-2 border-white/30 dark:border-white/10 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:shadow-lg hover:shadow-blue-500/10 transition-all disabled:opacity-50 shadow-md shadow-black/5"
             >
-              <span className="text-2xl">🔘</span>
-              <span className="text-xs font-bold">{i + 1}</span>
+              <Power className="w-6 h-6 text-blue-500" />
+              <span className="text-xs font-bold mt-0.5">{i + 1}</span>
             </motion.button>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">

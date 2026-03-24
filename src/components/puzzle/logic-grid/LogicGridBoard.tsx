@@ -11,7 +11,7 @@ import {
   type CellMark,
 } from '@/engines/logic-grid/engine';
 import { useAudio } from '@/hooks/useAudio';
-import { Check, X as XIcon } from 'lucide-react';
+import { Check, X as XIcon, BookOpen } from 'lucide-react';
 
 interface LogicGridBoardProps {
   difficulty: number;
@@ -56,7 +56,6 @@ export function LogicGridBoard({ difficulty, seed, onComplete, onFail }: LogicGr
     setState(createInitialState(puzzle));
   }, [puzzle, playClick]);
 
-  // Build subgrid pairs for rendering
   const gridPairs = useMemo(() => {
     const pairs: { key: string; catA: typeof puzzle.categories[0]; catB: typeof puzzle.categories[0] }[] = [];
     for (let i = 0; i < puzzle.categories.length; i++) {
@@ -70,7 +69,8 @@ export function LogicGridBoard({ difficulty, seed, onComplete, onFail }: LogicGr
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -80,11 +80,14 @@ export function LogicGridBoard({ difficulty, seed, onComplete, onFail }: LogicGr
       </div>
 
       {/* Clues */}
-      <div className="bg-accent/10 border border-accent/20 rounded-xl p-4">
-        <h3 className="font-bold text-accent text-sm mb-2">단서</h3>
-        <ol className="space-y-1 list-decimal list-inside">
+      <div className="bg-purple-500/10 border border-purple-400/30 rounded-2xl p-4 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <BookOpen className="w-4 h-4 text-purple-500" />
+          <h3 className="font-bold text-purple-600 dark:text-purple-400 text-sm">단서</h3>
+        </div>
+        <ol className="space-y-1.5 list-decimal list-inside">
           {puzzle.clues.map((clue, i) => (
-            <li key={i} className="text-sm text-[var(--text-secondary)]">{clue.text}</li>
+            <li key={i} className="text-sm text-[var(--text-secondary)] leading-relaxed">{clue.text}</li>
           ))}
         </ol>
       </div>
@@ -97,70 +100,70 @@ export function LogicGridBoard({ difficulty, seed, onComplete, onFail }: LogicGr
 
           return (
             <div key={key} className="inline-block min-w-full">
-              <div className="text-sm font-bold text-[var(--text-secondary)] mb-2">
+              <div className="text-sm font-bold text-[var(--text-secondary)] mb-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600" />
                 {catA.name} vs {catB.name}
               </div>
-              <table className="border-collapse">
-                <thead>
-                  <tr>
-                    <th className="w-20 p-1" />
-                    {catB.items.map((item) => (
-                      <th key={item} className="p-1 text-xs font-medium text-[var(--text-secondary)] w-16 text-center">
-                        {item}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {catA.items.map((rowItem) => (
-                    <tr key={rowItem}>
-                      <td className="p-1 text-xs font-medium text-[var(--text-secondary)] text-right pr-2">
-                        {rowItem}
-                      </td>
-                      {catB.items.map((colItem) => {
-                        const mark = subGrid[rowItem]?.[colItem] ?? 'unknown';
-                        return (
-                          <td key={colItem} className="p-0.5">
-                            <motion.button
-                              whileTap={{ scale: 0.85 }}
-                              onClick={() => handleCellClick(catA.id, rowItem, catB.id, colItem, mark)}
-                              className={`w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-all ${
-                                mark === 'true'
-                                  ? 'bg-success/20 border-success text-success'
-                                  : mark === 'false'
-                                  ? 'bg-error/10 border-error/30 text-error/60'
-                                  : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-primary/50'
-                              }`}
-                            >
-                              {mark === 'true' && <Check className="w-4 h-4" />}
-                              {mark === 'false' && <XIcon className="w-4 h-4" />}
-                            </motion.button>
-                          </td>
-                        );
-                      })}
+              <div className="glass-card rounded-xl overflow-hidden">
+                <table className="border-collapse w-full">
+                  <thead>
+                    <tr>
+                      <th className="w-24 p-2" />
+                      {catB.items.map((item) => (
+                        <th key={item} className="p-2 text-xs font-semibold text-[var(--text-secondary)] text-center border-b border-[var(--border)]">
+                          {item}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {catA.items.map((rowItem) => (
+                      <tr key={rowItem} className="border-b border-[var(--border)] last:border-b-0">
+                        <td className="p-2 text-xs font-semibold text-[var(--text-secondary)] text-right pr-3">
+                          {rowItem}
+                        </td>
+                        {catB.items.map((colItem) => {
+                          const mark = subGrid[rowItem]?.[colItem] ?? 'unknown';
+                          return (
+                            <td key={colItem} className="p-1 text-center">
+                              <motion.button
+                                whileTap={{ scale: 0.85 }}
+                                whileHover={{ scale: 1.05 }}
+                                onClick={() => handleCellClick(catA.id, rowItem, catB.id, colItem, mark)}
+                                className={`w-12 h-12 rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${
+                                  mark === 'true'
+                                    ? 'bg-emerald-500/20 border-emerald-400 text-emerald-500 shadow-sm shadow-emerald-500/10'
+                                    : mark === 'false'
+                                    ? 'bg-red-500/10 border-red-400/30 text-red-500/60'
+                                    : 'bg-[var(--bg-secondary)] border-[var(--border)] hover:border-blue-400/50 hover:bg-blue-500/5'
+                                }`}
+                              >
+                                {mark === 'true' && <Check className="w-5 h-5" />}
+                                {mark === 'false' && <XIcon className="w-5 h-5" />}
+                              </motion.button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">
@@ -170,15 +173,15 @@ export function LogicGridBoard({ difficulty, seed, onComplete, onFail }: LogicGr
       </div>
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 text-xs text-[var(--text-secondary)]">
-        <span className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-[var(--bg-secondary)] border border-[var(--border)] inline-block" /> 미확인
+      <div className="flex justify-center gap-5 text-xs text-[var(--text-secondary)]">
+        <span className="flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] inline-block" /> 미확인
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-error/10 border border-error/30 inline-flex items-center justify-center text-error"><XIcon className="w-3 h-3" /></span> 아님
+        <span className="flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-lg bg-red-500/10 border border-red-400/30 inline-flex items-center justify-center text-red-500"><XIcon className="w-3 h-3" /></span> 아님
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-success/20 border border-success inline-flex items-center justify-center text-success"><Check className="w-3 h-3" /></span> 맞음
+        <span className="flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-lg bg-emerald-500/20 border border-emerald-400 inline-flex items-center justify-center text-emerald-500"><Check className="w-3 h-3" /></span> 맞음
         </span>
       </div>
     </div>

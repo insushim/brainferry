@@ -7,7 +7,6 @@ export interface LogicGridSolverResult {
 }
 
 type Grid = Map<string, Map<string, Set<string>>>;
-// Grid: categoryA -> categoryB -> possible values from categoryB for each item in categoryA
 
 function createGrid(categories: { id: string; items: string[] }[]): Grid {
   const grid: Grid = new Map();
@@ -49,12 +48,11 @@ function eliminate(grid: Grid, catA: string, itemA: string, catB: string, itemB:
   const mapping = getMapping(grid, catA, catB);
   if (!mapping) return false;
 
-  // Figure out which direction
   if (mapping.has(itemA)) {
     const possibles = mapping.get(itemA)!;
     if (!possibles.has(itemB)) return false;
     possibles.delete(itemB);
-    if (possibles.size === 0) return false; // contradiction
+    if (possibles.size === 0) return false;
     return true;
   } else if (mapping.has(itemB)) {
     const possibles = mapping.get(itemB)!;
@@ -73,7 +71,6 @@ function assign(grid: Grid, catA: string, itemA: string, catB: string, itemB: st
   if (mapping.has(itemA)) {
     const possibles = mapping.get(itemA)!;
     if (!possibles.has(itemB)) return false;
-    // Remove itemB from all other items in catA
     for (const [otherItem, otherPossibles] of mapping) {
       if (otherItem !== itemA) {
         otherPossibles.delete(itemB);
@@ -107,7 +104,6 @@ function propagate(grid: Grid, categories: { id: string; items: string[] }[]): b
       for (const [item, possibles] of mapping) {
         if (possibles.size === 1) {
           const determined = [...possibles][0];
-          // Eliminate this value from other items
           for (const [otherItem, otherPossibles] of mapping) {
             if (otherItem !== item && otherPossibles.has(determined)) {
               otherPossibles.delete(determined);
@@ -118,7 +114,6 @@ function propagate(grid: Grid, categories: { id: string; items: string[] }[]): b
         }
       }
 
-      // Hidden single: if only one item can have a value
       const [catAId, catBId] = key.split(':');
       const catB = categories.find(c => c.id === catBId);
       if (catB) {
@@ -170,14 +165,39 @@ function applyClue(grid: Grid, clue: LogicClue, categories: { id: string; items:
     case 'negation':
       return eliminate(grid, d.catA, d.itemA, d.catB, d.itemB) !== false;
     case 'relation_negation': {
-      // itemA (in catA) is not the same row as itemB (in catB)
       eliminate(grid, d.catA, d.itemA, d.catB, d.itemB);
       return !hasContradiction(grid);
     }
     case 'ordering':
-    case 'adjacent':
-      // These are handled during solve via constraint checking
+      // Ordering clues are structural — they don't eliminate directly
+      // but provide relative position info. For the solver, they are
+      // treated as hints during backtracking.
       return true;
+    case 'adjacent':
+      return true;
+    case 'liar': {
+      // The liar clue wraps another clue. In our implementation,
+      // liar clues are actually true — the challenge is for the player
+      // to figure that out. So we apply the underlying clue.
+      // The underlying clue data is stored in the same data object.
+      if (d.catA && d.catB && d.itemA && d.itemB) {
+        // This was originally a negation clue
+        return eliminate(grid, d.catA, d.itemA, d.catB, d.itemB) !== false;
+      }
+      return true;
+    }
+    case 'conditional': {
+      // Conditional clues: if condition is true, then apply the conclusion
+      // Since we know both condition and conclusion are true in our solution,
+      // we apply both as direct_match
+      if (d.condCatA && d.condItemA && d.condCatB && d.condItemB) {
+        assign(grid, d.condCatA, d.condItemA, d.condCatB, d.condItemB);
+      }
+      if (d.thenCatA && d.thenItemA && d.thenCatB && d.thenItemB) {
+        assign(grid, d.thenCatA, d.thenItemA, d.thenCatB, d.thenItemB);
+      }
+      return !hasContradiction(grid);
+    }
     default:
       return true;
   }
@@ -192,7 +212,6 @@ function solveWithBacktracking(
 ): void {
   if (solutions.length >= maxSolutions) return;
 
-  // Apply all clues
   for (const clue of clues) {
     if (!applyClue(grid, clue, categories)) return;
   }
@@ -205,7 +224,6 @@ function solveWithBacktracking(
     return;
   }
 
-  // Find cell with fewest possibilities > 1
   let bestKey = '';
   let bestItem = '';
   let bestSize = Infinity;

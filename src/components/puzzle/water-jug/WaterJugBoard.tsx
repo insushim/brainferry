@@ -10,6 +10,7 @@ import {
   type WaterJugState,
 } from '@/engines/water-jug/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { Droplets, Trash2 } from 'lucide-react';
 
 interface WaterJugBoardProps {
   difficulty: number;
@@ -74,6 +75,7 @@ export function WaterJugBoard({ difficulty, seed, onComplete, onFail }: WaterJug
     if (state.moveHistory.length === 0) return;
     playClick();
     setState(undo(state, puzzle));
+    setSelectedJug(null);
   }, [state, puzzle, playClick]);
 
   const handleReset = useCallback(() => {
@@ -84,12 +86,16 @@ export function WaterJugBoard({ difficulty, seed, onComplete, onFail }: WaterJug
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
-        <p className="font-medium mb-2">{puzzle.story}</p>
-        <p className="text-primary font-bold">
-          목표: 정확히 <span className="text-xl">{puzzle.target}</span>리터를 측정하세요
-        </p>
-        <ul className="mt-2 space-y-1 text-[var(--text-secondary)]">
+      {/* Story & Target */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
+        <p className="font-medium mb-3">{puzzle.story}</p>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500/15 to-cyan-500/15 border border-blue-400/30">
+          <Droplets className="w-4 h-4 text-blue-500" />
+          <span className="font-bold text-blue-600 dark:text-blue-400">
+            목표: 정확히 <span className="text-xl tabular-nums">{puzzle.target}</span>리터
+          </span>
+        </div>
+        <ul className="mt-3 space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
             <li key={i} className="flex gap-2"><span className="text-primary">•</span>{rule}</li>
           ))}
@@ -97,15 +103,19 @@ export function WaterJugBoard({ difficulty, seed, onComplete, onFail }: WaterJug
       </div>
 
       {selectedJug && (
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 text-center text-sm">
-          <span className="text-primary font-semibold">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-blue-500/10 border border-blue-400/30 rounded-2xl p-3 text-center text-sm backdrop-blur-sm"
+        >
+          <span className="text-blue-500 dark:text-blue-400 font-semibold">
             {capacityMap.get(selectedJug)}L 물통 선택됨 — 다른 물통을 클릭하면 부어집니다
           </span>
-        </div>
+        </motion.div>
       )}
 
       {/* Jugs */}
-      <div className="flex flex-wrap gap-6 justify-center py-4">
+      <div className="flex flex-wrap gap-6 justify-center py-6">
         {puzzle.jugs.map((jug) => {
           const level = state.levels[jug.id] ?? 0;
           const capacity = jug.capacity;
@@ -119,67 +129,80 @@ export function WaterJugBoard({ difficulty, seed, onComplete, onFail }: WaterJug
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleJugClick(jug.id)}
-              className={`flex flex-col items-center cursor-pointer ${
-                isSelected ? 'ring-3 ring-primary rounded-2xl' : ''
+              className={`flex flex-col items-center cursor-pointer transition-all ${
+                isSelected ? 'ring-3 ring-blue-400 rounded-2xl shadow-lg shadow-blue-500/20' : ''
               }`}
             >
               {/* Jug visual */}
               <div
-                className={`relative w-20 rounded-b-2xl rounded-t-lg border-3 overflow-hidden ${
-                  isTarget ? 'border-success' : 'border-[var(--border)]'
+                className={`relative w-24 rounded-b-2xl rounded-t-xl border-3 overflow-hidden transition-all ${
+                  isTarget
+                    ? 'border-emerald-400 shadow-lg shadow-emerald-400/30'
+                    : isSelected
+                      ? 'border-blue-400'
+                      : 'border-[var(--border)]'
                 }`}
-                style={{ height: `${Math.max(80, capacity * 20)}px` }}
+                style={{ height: `${Math.max(90, capacity * 22)}px` }}
               >
+                {/* Water fill */}
                 <motion.div
                   className={`absolute bottom-0 left-0 right-0 ${
-                    isTarget ? 'bg-success/40' : 'bg-blue-500/30'
+                    isTarget ? 'bg-gradient-to-t from-emerald-500/50 to-emerald-400/30' : 'bg-gradient-to-t from-blue-500/50 to-blue-400/30'
                   }`}
                   animate={{ height: `${fillPercent}%` }}
                   transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                 />
+                {/* Wave effect at top of water */}
+                {level > 0 && (
+                  <motion.div
+                    className="absolute left-0 right-0 h-2 bg-gradient-to-b from-white/20 to-transparent"
+                    animate={{ bottom: `${fillPercent - 2}%` }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                  />
+                )}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold">{level}</span>
+                  <span className="text-xl font-bold tabular-nums drop-shadow">{level}</span>
                 </div>
               </div>
 
-              <span className="text-sm font-semibold mt-2">{capacity}L</span>
+              <span className="text-sm font-bold mt-2 tabular-nums">{capacity}L</span>
 
               {/* Action buttons */}
-              <div className="flex gap-1 mt-2">
-                <button
+              <div className="flex gap-1.5 mt-2">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
                   onClick={(e) => { e.stopPropagation(); handleFill(jug.id); }}
                   disabled={level === capacity || state.isComplete}
-                  className="px-2 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium disabled:opacity-30 hover:bg-blue-500/30 transition-colors"
+                  className="p-2 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 disabled:opacity-30 hover:bg-blue-500/25 transition-colors"
+                  title="채우기"
                 >
-                  채우기
-                </button>
-                <button
+                  <Droplets className="w-4 h-4" />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
                   onClick={(e) => { e.stopPropagation(); handleEmpty(jug.id); }}
                   disabled={level === 0 || state.isComplete}
-                  className="px-2 py-1 text-xs rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 font-medium disabled:opacity-30 hover:bg-red-500/30 transition-colors"
+                  className="p-2 rounded-xl bg-red-500/15 text-red-600 dark:text-red-400 disabled:opacity-30 hover:bg-red-500/25 transition-colors"
+                  title="비우기"
                 >
-                  비우기
-                </button>
+                  <Trash2 className="w-4 h-4" />
+                </motion.button>
               </div>
             </motion.div>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">

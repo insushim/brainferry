@@ -2,17 +2,26 @@ import { SeededRandom } from '../seeded-random';
 import { BasePuzzle } from '../types';
 import { solveBridgeTorch } from './solver';
 
+export type BridgeVariant = 'basic' | 'bridge-durability' | 'two-bridges' | 'battery-drain';
+
 export type BridgeMove = {
   people: string[];
   direction: 'forward' | 'back';
   time: number;
+  bridgeIndex?: number; // for two-bridges
 };
 
 export interface BridgeTorchPuzzle extends BasePuzzle {
   category: 'bridge-torch';
+  variant: BridgeVariant;
   people: { id: string; name: string; emoji: string; speed: number }[];
   timeLimit: number;
   bridgeCapacity: number;
+  bridgeDurability?: number; // for bridge-durability: max total crossings
+  bridge2Capacity?: number; // for two-bridges: second bridge capacity
+  bridge2SpeedMod?: number; // for two-bridges: speed multiplier (2 = twice as slow)
+  batteryLife?: number; // for battery-drain: initial battery
+  batteryDrainRate?: number; // for battery-drain: extra time per crossing
   solution: BridgeMove[];
 }
 
@@ -69,6 +78,13 @@ const THEMES: BridgeTheme[] = [
   },
 ];
 
+function getVariant(difficulty: number, rng: SeededRandom): BridgeVariant {
+  if (difficulty <= 3) return 'basic';
+  if (difficulty <= 6) return rng.pick(['basic', 'bridge-durability']);
+  if (difficulty <= 8) return rng.pick(['bridge-durability', 'two-bridges']);
+  return rng.pick(['two-bridges', 'battery-drain']);
+}
+
 function getPeopleCount(difficulty: number): number {
   if (difficulty <= 2) return 3;
   if (difficulty <= 4) return 4;
@@ -83,6 +99,7 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
     const theme = rng.pick(THEMES);
+    const variant = getVariant(difficulty, rng);
     const count = getPeopleCount(difficulty);
     const bridgeCapacity = 2;
 
@@ -97,10 +114,11 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
     }));
 
     // First solve without time limit to find optimal time
-    const unlimitedPuzzle: BridgeTorchPuzzle = {
+    const puzzle: BridgeTorchPuzzle = {
       seed,
       difficulty,
       category: 'bridge-torch',
+      variant,
       optimalSteps: 0,
       story: '',
       rules: [],
@@ -111,42 +129,89 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
       solution: [],
     };
 
-    const result = solveBridgeTorch(unlimitedPuzzle);
+    // Variant-specific config
+    if (variant === 'bridge-durability') {
+      // Total crossings limited. People count * 2 - 1 is normal max for basic.
+      // Set it to just barely enough for the optimal solution
+      puzzle.bridgeDurability = count * 2 - 1; // will be refined after solving
+    }
+
+    if (variant === 'two-bridges') {
+      puzzle.bridge2Capacity = 1;
+      puzzle.bridge2SpeedMod = 2; // second bridge is slower but always available
+    }
+
+    if (variant === 'battery-drain') {
+      puzzle.batteryLife = 100;
+      puzzle.batteryDrainRate = rng.int(1, 3); // extra time added per crossing
+    }
+
+    const result = solveBridgeTorch(puzzle);
     if (!result.solvable) continue;
 
     const optimalTime = result.moves.reduce((sum, m) => sum + m.time, 0);
-    const timeLimit = optimalTime;
+    puzzle.timeLimit = optimalTime;
 
-    const puzzle: BridgeTorchPuzzle = {
-      seed,
-      difficulty,
-      category: 'bridge-torch',
-      optimalSteps: result.moves.length,
-      story: '',
-      rules: [],
-      hints: [],
-      people,
-      timeLimit,
-      bridgeCapacity,
-      solution: result.moves,
-    };
+    if (variant === 'bridge-durability') {
+      // Set durability to exactly the number of crossings in the solution
+      puzzle.bridgeDurability = result.moves.length;
+    }
+
+    if (variant === 'battery-drain') {
+      // Recalculate with battery drain accounted for
+      let totalTime = 0;
+      for (let i = 0; i < result.moves.length; i++) {
+        totalTime += result.moves[i].time + i * (puzzle.batteryDrainRate ?? 0);
+      }
+      puzzle.timeLimit = totalTime;
+    }
+
+    puzzle.solution = result.moves;
+    puzzle.optimalSteps = result.moves.length;
 
     // Generate story
     const peopleDesc = people.map(p => `${p.emoji}${p.name}(${p.speed}분)`).join(', ');
-    puzzle.story = `${theme.storyPrefix} 횃불은 하나뿐이고 다리는 한 번에 ${bridgeCapacity}명만 건널 수 있습니다. ${peopleDesc}이 ${timeLimit}분 안에 모두 건너야 합니다.`;
+    let variantStory = '';
+    if (variant === 'bridge-durability') {
+      variantStory = ` 다리는 총 ${puzzle.bridgeDurability}번만 건널 수 있습니다!`;
+    } else if (variant === 'two-bridges') {
+      variantStory = ` 다리가 2개! 1번 다리(${bridgeCapacity}명), 2번 다리(${puzzle.bridge2Capacity}명, 속도 ${puzzle.bridge2SpeedMod}배 느림).`;
+    } else if (variant === 'battery-drain') {
+      variantStory = ` 횃불 배터리가 소모됩니다! 매 횡단마다 +${puzzle.batteryDrainRate}분씩 추가 시간이 걸립니다.`;
+    }
+    puzzle.story = `${theme.storyPrefix} 횃불은 하나뿐이고 다리는 한 번에 ${bridgeCapacity}명만 건널 수 있습니다. ${peopleDesc}이 ${puzzle.timeLimit}분 안에 모두 건너야 합니다.${variantStory}`;
 
     puzzle.rules = [
       `다리는 한 번에 최대 ${bridgeCapacity}명이 건널 수 있습니다.`,
       '횃불을 가지고 건너야 하며, 돌아올 때도 1명이 횃불을 가져와야 합니다.',
       '건너는 속도는 함께 건너는 사람 중 가장 느린 사람의 속도입니다.',
-      `${timeLimit}분 안에 모두 건너야 합니다.`,
+      `${puzzle.timeLimit}분 안에 모두 건너야 합니다.`,
     ];
+
+    if (variant === 'bridge-durability') {
+      puzzle.rules.push(`⚠️ 다리를 총 ${puzzle.bridgeDurability}번만 건널 수 있습니다!`);
+    }
+    if (variant === 'two-bridges') {
+      puzzle.rules.push(`⚠️ 2번 다리: ${puzzle.bridge2Capacity}명, 속도 ${puzzle.bridge2SpeedMod}배 느림`);
+    }
+    if (variant === 'battery-drain') {
+      puzzle.rules.push(`⚠️ 배터리 소모: 매 횡단마다 +${puzzle.batteryDrainRate}분 추가`);
+    }
 
     const sortedPeople = [...people].sort((a, b) => a.speed - b.speed);
     puzzle.hints = [
-      `최적 시간은 ${timeLimit}분입니다.`,
+      `최적 시간은 ${puzzle.timeLimit}분입니다.`,
       `가장 빠른 사람(${sortedPeople[0].name}: ${sortedPeople[0].speed}분)이 횃불을 되가져오는 역할을 자주 합니다.`,
     ];
+    if (variant === 'bridge-durability') {
+      puzzle.hints.push(`다리 사용 횟수를 최소화하세요. 한 번에 2명씩 보내세요.`);
+    }
+    if (variant === 'two-bridges') {
+      puzzle.hints.push('느린 사람은 2번 다리(속도 패널티)를 사용하는 것도 전략입니다.');
+    }
+    if (variant === 'battery-drain') {
+      puzzle.hints.push('초반에 느린 사람을 보내면 배터리 소모가 적습니다.');
+    }
     if (people.length >= 4) {
       puzzle.hints.push('느린 사람끼리 함께 건너면 시간을 절약할 수 있습니다.');
     }
@@ -154,11 +219,12 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
     return puzzle;
   }
 
-  // Fallback: classic 4-person bridge problem
+  // Fallback
   return {
     seed,
     difficulty,
     category: 'bridge-torch',
+    variant: 'basic',
     optimalSteps: 5,
     story: '4명이 17분 안에 다리를 건너야 합니다. 🧑‍🎓민수(1분), 👩‍🎓지영(2분), 🧑현우(5분), 👧수진(10분).',
     rules: [

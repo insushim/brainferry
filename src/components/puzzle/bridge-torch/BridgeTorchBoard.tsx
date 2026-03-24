@@ -84,11 +84,13 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
     setSelected(new Set());
   }, [puzzle, playClick]);
 
-  const currentSide = state.torchPosition === 'left' ? state.leftSide : state.rightSide;
+  const timePercent = Math.min(100, (state.elapsedTime / puzzle.timeLimit) * 100);
+  const timeWarning = timePercent > 80;
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -98,24 +100,22 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
       </div>
 
       {/* Time bar */}
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-        <div className="flex justify-between text-sm mb-1">
-          <span>경과 시간: <strong>{state.elapsedTime}분</strong></span>
-          <span>제한 시간: <strong className="text-error">{puzzle.timeLimit}분</strong></span>
+      <div className="glass-card rounded-2xl p-4">
+        <div className="flex justify-between text-sm mb-2">
+          <span>경과: <strong className="text-lg tabular-nums">{state.elapsedTime}분</strong></span>
+          <span>제한: <strong className={`text-lg tabular-nums ${timeWarning ? 'text-error' : ''}`}>{puzzle.timeLimit}분</strong></span>
         </div>
-        <div className="w-full h-3 bg-[var(--border)] rounded-full overflow-hidden">
+        <div className="w-full h-3 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${
-              state.elapsedTime > puzzle.timeLimit * 0.8 ? 'bg-error' : 'bg-primary'
-            }`}
-            animate={{ width: `${Math.min(100, (state.elapsedTime / puzzle.timeLimit) * 100)}%` }}
+            className={`h-full rounded-full transition-colors ${timeWarning ? 'bg-gradient-to-r from-red-400 to-red-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
+            animate={{ width: `${timePercent}%` }}
             transition={{ duration: 0.3 }}
           />
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-stretch gap-4 min-h-[200px]">
-        {/* Left Side */}
+      {/* Board */}
+      <div className="flex flex-col md:flex-row items-stretch gap-0 min-h-[220px] rounded-2xl overflow-hidden shadow-lg shadow-black/5">
         <PersonGroup
           label="이쪽"
           people={state.leftSide}
@@ -126,15 +126,19 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
         />
 
         {/* Bridge */}
-        <div className="flex-shrink-0 flex flex-col items-center justify-center md:w-24">
-          <div className="text-2xl mb-2">🌉</div>
-          <div className="text-sm text-[var(--text-secondary)] font-medium">다리</div>
-          <div className="text-xs text-[var(--text-secondary)]">
+        <div className="flex-shrink-0 flex flex-col items-center justify-center md:w-28 h-20 md:h-auto bg-gradient-to-b from-stone-700 to-stone-800 dark:from-stone-800 dark:to-stone-900 relative">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+          <div className="text-3xl mb-1">🌉</div>
+          <div className="text-xs text-stone-400 font-semibold">다리</div>
+          <motion.div
+            animate={{ x: state.torchPosition === 'left' ? -8 : 8 }}
+            className="text-xs text-amber-400 font-bold mt-1"
+          >
             {state.torchPosition === 'left' ? '→' : '←'}
-          </div>
+          </motion.div>
         </div>
 
-        {/* Right Side */}
         <PersonGroup
           label="저쪽"
           people={state.rightSide}
@@ -145,27 +149,24 @@ export function BridgeTorchBoard({ difficulty, seed, onComplete, onFail }: Bridg
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={handleMove}
           disabled={selected.size === 0 || state.isComplete || state.isFailed}
-          className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold disabled:opacity-40 hover:bg-primary-dark transition-colors"
+          className="px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold disabled:opacity-40 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25 transition-all"
         >
           {state.torchPosition === 'left' ? '건너기 →' : '← 돌아오기'}
-        </button>
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">
@@ -193,14 +194,16 @@ function PersonGroup({
   onToggle?: (id: string) => void;
 }) {
   return (
-    <div className={`flex-1 rounded-xl p-4 flex flex-col items-center justify-center gap-3 min-h-[80px] ${
-      hasTorch ? 'bg-amber-500/10 border-2 border-amber-500/30' : 'bg-[var(--bg-secondary)] border-2 border-transparent'
+    <div className={`flex-1 p-5 flex flex-col items-center justify-center gap-3 min-h-[100px] transition-all duration-300 ${
+      hasTorch
+        ? 'bg-gradient-to-b from-amber-800/40 to-amber-700/20 dark:from-amber-900/40'
+        : 'bg-gradient-to-b from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-900'
     }`}>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-[var(--text-secondary)] uppercase">{label}</span>
-        {hasTorch && <span className="text-lg">🔦</span>}
+        <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">{label}</span>
+        {hasTorch && <span className="text-lg animate-pulse">🔦</span>}
       </div>
-      <div className="flex flex-wrap gap-2 justify-center">
+      <div className="flex flex-wrap gap-2.5 justify-center">
         <AnimatePresence>
           {people.map((id) => {
             const person = speedMap.get(id);
@@ -213,17 +216,19 @@ function PersonGroup({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
+                whileHover={onToggle ? { scale: 1.08, y: -3 } : undefined}
+                whileTap={onToggle ? { scale: 0.92 } : undefined}
                 onClick={() => onToggle?.(id)}
-                className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                className={`flex flex-col items-center p-2.5 rounded-2xl transition-all duration-200 min-w-[60px] ${
                   onToggle ? 'cursor-pointer' : 'cursor-default'
                 } ${isSelected
-                  ? 'bg-primary/20 border-2 border-primary ring-2 ring-primary/30'
-                  : 'bg-[var(--card)] border-2 border-[var(--border)]'
+                  ? 'bg-blue-500/20 border-2 border-blue-400 ring-2 ring-blue-400/30 shadow-lg shadow-blue-500/10'
+                  : 'bg-white/80 dark:bg-slate-800/80 border-2 border-white/30 dark:border-white/10 backdrop-blur-sm shadow-md shadow-black/5'
                 }`}
               >
                 <span className="text-2xl">{person.emoji}</span>
-                <span className="text-xs font-medium">{person.name}</span>
-                <span className="text-xs text-[var(--text-secondary)]">{person.speed}분</span>
+                <span className="text-xs font-semibold mt-0.5">{person.name}</span>
+                <span className="text-[10px] text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-full px-2 py-0.5 mt-1 font-mono">{person.speed}분</span>
               </motion.button>
             );
           })}

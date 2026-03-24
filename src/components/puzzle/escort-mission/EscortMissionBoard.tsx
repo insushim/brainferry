@@ -10,6 +10,7 @@ import {
   type EscortState,
 } from '@/engines/escort-mission/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { Minus, Plus } from 'lucide-react';
 
 interface EscortMissionBoardProps {
   difficulty: number;
@@ -79,7 +80,8 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -88,9 +90,10 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
         </ul>
       </div>
 
-      <div className="flex flex-col md:flex-row items-stretch gap-4 min-h-[200px]">
+      {/* Board */}
+      <div className="flex flex-col md:flex-row items-stretch gap-0 min-h-[220px] rounded-2xl overflow-hidden shadow-lg shadow-black/5">
         {/* Left Bank */}
-        <BankDisplay
+        <GroupBank
           label="이쪽"
           groupA={puzzle.groupA}
           groupB={puzzle.groupB}
@@ -100,48 +103,43 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
           failed={state.isFailed}
         />
 
-        {/* River + Boat Selection */}
-        <div className="flex-shrink-0 relative flex flex-col items-center justify-center md:w-44 h-40 md:h-auto gap-2">
-          <div className="absolute inset-0 water-surface rounded-xl" />
+        {/* River + Boat */}
+        <div className="flex-shrink-0 relative flex flex-col items-center justify-center md:w-52 h-44 md:h-auto">
+          <div className="absolute inset-0 water-surface" />
           <motion.div
             animate={{ x: state.boatPosition === 'left' ? -15 : 15 }}
-            className="relative z-10 bg-amber-800/90 rounded-xl p-3 border-2 border-amber-700 text-white text-center min-w-[120px]"
+            transition={{ type: 'spring', stiffness: 100, damping: 18 }}
+            className="relative z-10 animate-boat-rock"
           >
-            <div className="text-lg mb-2">🚣 보트</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <span>{puzzle.groupA.emoji}</span>
-                <select
+            <div
+              className="bg-gradient-to-b from-amber-700 to-amber-900 rounded-xl p-4 border-2 border-amber-600/60 shadow-2xl text-white text-center min-w-[140px]"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 14px, rgba(0,0,0,0.06) 14px, rgba(0,0,0,0.06) 16px)',
+              }}
+            >
+              <div className="text-xl mb-3">🚣 보트</div>
+              <div className="space-y-3">
+                <NumberPicker
+                  emoji={puzzle.groupA.emoji}
+                  label={puzzle.groupA.name}
                   value={selectedA}
-                  onChange={(e) => {
-                    setSelectedA(Number(e.target.value));
-                    setSelectedB(0);
-                  }}
-                  className="bg-amber-700 rounded px-2 py-0.5 text-white"
-                >
-                  {Array.from({ length: maxA + 1 }, (_, i) => (
-                    <option key={i} value={i}>{i}명</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span>{puzzle.groupB.emoji}</span>
-                <select
+                  max={maxA}
+                  onChange={(v) => { setSelectedA(v); setSelectedB(0); }}
+                />
+                <NumberPicker
+                  emoji={puzzle.groupB.emoji}
+                  label={puzzle.groupB.name}
                   value={selectedB}
-                  onChange={(e) => setSelectedB(Number(e.target.value))}
-                  className="bg-amber-700 rounded px-2 py-0.5 text-white"
-                >
-                  {Array.from({ length: maxB + 1 }, (_, i) => (
-                    <option key={i} value={i}>{i}명</option>
-                  ))}
-                </select>
+                  max={maxB}
+                  onChange={setSelectedB}
+                />
               </div>
             </div>
           </motion.div>
         </div>
 
         {/* Right Bank */}
-        <BankDisplay
+        <GroupBank
           label="저쪽"
           groupA={puzzle.groupA}
           groupB={puzzle.groupB}
@@ -152,29 +150,27 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={handleSail}
           disabled={isMoving || (selectedA + selectedB === 0) || state.isComplete}
-          className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold disabled:opacity-40 hover:bg-primary-dark transition-colors"
+          className="px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold disabled:opacity-40 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25 transition-all"
         >
           출발! 🚣
-        </button>
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
+      {/* Steps */}
       <div className="text-center text-sm text-[var(--text-secondary)]">
         이동: <span className="font-bold text-[var(--text)]">{state.steps}</span>
         {' / 최적: '}
@@ -184,7 +180,45 @@ export function EscortMissionBoard({ difficulty, seed, onComplete, onFail }: Esc
   );
 }
 
-function BankDisplay({
+/* Number picker with +/- buttons */
+function NumberPicker({
+  emoji,
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  emoji: string;
+  label: string;
+  value: number;
+  max: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-lg">{emoji}</span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onChange(Math.max(0, value - 1))}
+          disabled={value <= 0}
+          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center transition-colors"
+        >
+          <Minus className="w-3 h-3" />
+        </button>
+        <span className="w-8 text-center font-bold text-lg">{value}</span>
+        <button
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 flex items-center justify-center transition-colors"
+        >
+          <Plus className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GroupBank({
   label,
   groupA,
   groupB,
@@ -202,20 +236,41 @@ function BankDisplay({
   failed: boolean;
 }) {
   return (
-    <div className={`flex-1 rounded-xl p-4 flex flex-col items-center justify-center gap-2 min-h-[80px] ${
-      failed && active ? 'animate-shake animate-red-flash' : ''
-    } ${active ? 'bg-green-500/10 border-2 border-green-500/30' : 'bg-[var(--bg-secondary)] border-2 border-transparent'}`}>
-      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase">{label}</span>
-      <div className="flex gap-4">
+    <div className={`flex-1 p-5 flex flex-col items-center justify-center gap-3 min-h-[100px] transition-all duration-300 ${
+      failed && active ? 'animate-shake' : ''
+    } ${active
+      ? 'grass-bank shadow-inner'
+      : 'bg-gradient-to-b from-green-900/30 to-green-800/20 dark:from-green-950/30'
+    }`}>
+      <span className="text-xs font-bold text-white/70 uppercase tracking-wider">{label}</span>
+      <div className="flex gap-6">
         <div className="text-center">
-          <div className="text-2xl">{groupA.emoji}</div>
-          <div className="text-lg font-bold">{countA}</div>
-          <div className="text-xs text-[var(--text-secondary)]">{groupA.name}</div>
+          <div className="w-14 h-14 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex items-center justify-center text-3xl shadow-lg shadow-black/5 border border-white/30 dark:border-white/10 mb-1">
+            {groupA.emoji}
+          </div>
+          <motion.div
+            key={countA}
+            initial={{ scale: 1.3 }}
+            animate={{ scale: 1 }}
+            className="text-xl font-bold text-white drop-shadow"
+          >
+            {countA}
+          </motion.div>
+          <div className="text-xs text-white/60">{groupA.name}</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl">{groupB.emoji}</div>
-          <div className="text-lg font-bold">{countB}</div>
-          <div className="text-xs text-[var(--text-secondary)]">{groupB.name}</div>
+          <div className="w-14 h-14 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm flex items-center justify-center text-3xl shadow-lg shadow-black/5 border border-white/30 dark:border-white/10 mb-1">
+            {groupB.emoji}
+          </div>
+          <motion.div
+            key={countB}
+            initial={{ scale: 1.3 }}
+            animate={{ scale: 1 }}
+            className="text-xl font-bold text-white drop-shadow"
+          >
+            {countB}
+          </motion.div>
+          <div className="text-xs text-white/60">{groupB.name}</div>
         </div>
       </div>
     </div>

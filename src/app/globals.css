@@ -21,12 +21,12 @@
 }
 
 .dark {
-  --bg: #0F172A;
-  --bg-secondary: #1E293B;
+  --bg: #0B1120;
+  --bg-secondary: #1A2332;
   --text: #F1F5F9;
   --text-secondary: #94A3B8;
-  --card: #1E293B;
-  --border: #334155;
+  --card: #141E2E;
+  --border: #253346;
   color-scheme: dark;
 }
 
@@ -37,12 +37,242 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
-/* Water animation */
+/* =============================================
+   GLASS MORPHISM UTILITIES
+   ============================================= */
+
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+:root .glass {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass-light {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* =============================================
+   MESH GRADIENT BACKGROUNDS
+   ============================================= */
+
+.mesh-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 70%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
+}
+
+.mesh-gradient-hero {
+  background:
+    radial-gradient(ellipse at 15% 30%, rgba(59, 130, 246, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 10%, rgba(139, 92, 246, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 80%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 60%, rgba(245, 158, 11, 0.1) 0%, transparent 50%);
+}
+
+/* =============================================
+   ANIMATED GRADIENT TEXT
+   ============================================= */
+
+.gradient-text-animated {
+  background: linear-gradient(
+    135deg,
+    #3B82F6 0%,
+    #8B5CF6 25%,
+    #EC4899 50%,
+    #8B5CF6 75%,
+    #3B82F6 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% center; }
+  50% { background-position: 200% center; }
+  100% { background-position: 0% center; }
+}
+
+/* =============================================
+   PREMIUM BUTTON RIPPLE EFFECT
+   ============================================= */
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.3) 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10);
+  opacity: 0;
+  transition: transform 0.5s, opacity 0.8s;
+}
+
+.btn-ripple:active::after {
+  transform: scale(0);
+  opacity: 0.4;
+  transition: 0s;
+}
+
+/* Glow variants for buttons */
+.btn-glow-blue {
+  transition: box-shadow 0.3s ease;
+}
+.btn-glow-blue:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+.btn-glow-purple {
+  transition: box-shadow 0.3s ease;
+}
+.btn-glow-purple:hover {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.2);
+}
+
+.btn-glow-green {
+  transition: box-shadow 0.3s ease;
+}
+.btn-glow-green:hover {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.2);
+}
+
+/* =============================================
+   SMOOTH PAGE TRANSITIONS
+   ============================================= */
+
+.page-enter {
+  animation: page-fade-in 0.4s ease-out forwards;
+}
+
+.page-exit {
+  animation: page-fade-out 0.3s ease-in forwards;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* =============================================
+   PREMIUM SCROLLBAR
+   ============================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3));
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5));
+  background-clip: content-box;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.3) transparent;
+}
+
+/* =============================================
+   WATER ANIMATIONS (MULTI-LAYER WAVES)
+   ============================================= */
+
 @keyframes wave {
   0%, 100% { transform: translateX(0) translateY(0); }
   25% { transform: translateX(-5px) translateY(2px); }
   50% { transform: translateX(0) translateY(-2px); }
   75% { transform: translateX(5px) translateY(1px); }
+}
+
+@keyframes wave-slow {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes wave-medium {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes wave-fast {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 @keyframes water-flow {
@@ -51,9 +281,209 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+@keyframes water-shimmer {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.water-surface {
+  background: linear-gradient(180deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.water-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 20px,
+    rgba(255, 255, 255, 0.06) 20px,
+    rgba(255, 255, 255, 0.06) 40px
+  );
+  animation: wave 4s linear infinite;
+}
+
+.water-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 30px,
+    rgba(255, 255, 255, 0.03) 30px,
+    rgba(255, 255, 255, 0.03) 60px
+  );
+  animation: wave 6s linear infinite reverse;
+}
+
+.water-bg {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 25%, #60a5fa 50%, #3b82f6 75%, #1e40af 100%);
+  background-size: 200% 200%;
+  animation: water-flow 4s ease-in-out infinite;
+}
+
+.water-premium {
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 30%, #2563eb 60%, #3b82f6 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.water-premium::before,
+.water-premium::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 30%;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 30px,
+    rgba(255, 255, 255, 0.04) 30px,
+    rgba(255, 255, 255, 0.04) 60px
+  );
+}
+
+.water-premium::before {
+  top: 20%;
+  animation: wave 5s linear infinite;
+}
+
+.water-premium::after {
+  top: 50%;
+  animation: wave 7s linear infinite reverse;
+  opacity: 0.6;
+}
+
+/* =============================================
+   ENTITY CARD GLOW EFFECT
+   ============================================= */
+
+.entity-glow {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.entity-glow:hover {
+  box-shadow:
+    0 0 15px rgba(59, 130, 246, 0.3),
+    0 0 30px rgba(59, 130, 246, 0.1),
+    inset 0 0 15px rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.entity-glow-success {
+  box-shadow:
+    0 0 15px rgba(16, 185, 129, 0.3),
+    0 0 30px rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.entity-glow-danger {
+  box-shadow:
+    0 0 15px rgba(239, 68, 68, 0.3),
+    0 0 30px rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* =============================================
+   FLOATING PARTICLE EFFECT
+   ============================================= */
+
+@keyframes particle-drift {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.4;
+  }
+  80% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-100vh) translateX(var(--drift-x, 50px)) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.particle {
+  position: absolute;
+  pointer-events: none;
+  animation: particle-drift var(--particle-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--particle-delay, 0s);
+}
+
+/* =============================================
+   TYPEWRITER EFFECT
+   ============================================= */
+
+@keyframes typewriter-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.typewriter-cursor::after {
+  content: '|';
+  animation: typewriter-cursor 1s infinite;
+  color: var(--color-primary);
+  font-weight: 300;
+}
+
+/* =============================================
+   GRADIENT BORDER ANIMATION
+   ============================================= */
+
+@keyframes gradient-border {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gradient-border {
+  position: relative;
+  background-clip: padding-box;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.5),
+    rgba(139, 92, 246, 0.5),
+    rgba(236, 72, 153, 0.5),
+    rgba(59, 130, 246, 0.5)
+  );
+  background-size: 300% 300%;
+  animation: gradient-border 4s ease infinite;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* =============================================
+   ALL KEYFRAME ANIMATIONS
+   ============================================= */
+
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(2deg); }
+  66% { transform: translateY(4px) rotate(-1deg); }
 }
 
 @keyframes ripple {
@@ -72,6 +502,12 @@ body {
   75% { transform: translateX(15px); }
 }
 
+@keyframes confetti-burst {
+  0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  50% { opacity: 1; }
+  100% { transform: translateY(var(--confetti-y, 300px)) rotate(var(--confetti-rot, 720deg)) scale(0); opacity: 0; }
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
@@ -83,15 +519,36 @@ body {
   50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); }
 }
 
+@keyframes pulse-button {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
 @keyframes slide-up {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
 @keyframes star-pop {
   0% { transform: scale(0) rotate(-30deg); opacity: 0; }
-  60% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+  60% { transform: scale(1.3) rotate(5deg); opacity: 1; }
+  80% { transform: scale(0.9) rotate(-2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes star-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4)); }
+  50% { filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.8)); }
 }
 
 @keyframes red-flash {
@@ -106,19 +563,68 @@ body {
 
 @keyframes boat-rock {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-3deg); }
-  75% { transform: rotate(3deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
 }
+
+@keyframes colon-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wake-trail {
+  0% { width: 0; opacity: 0.6; }
+  100% { width: 100%; opacity: 0; }
+}
+
+@keyframes grass-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(2deg); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spinner {
+  to { transform: rotate(360deg); }
+}
+
+/* =============================================
+   ANIMATION UTILITY CLASSES
+   ============================================= */
 
 .animate-wave { animation: wave 3s ease-in-out infinite; }
 .animate-float { animation: float 3s ease-in-out infinite; }
+.animate-float-slow { animation: float-slow 5s ease-in-out infinite; }
 .animate-shake { animation: shake 0.4s ease-in-out; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-pulse-button { animation: pulse-button 2s ease-in-out infinite; }
+.animate-pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
 .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+.animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
 .animate-star-pop { animation: star-pop 0.5s ease-out forwards; }
+.animate-star-glow { animation: star-glow 2s ease-in-out infinite; }
 .animate-red-flash { animation: red-flash 0.6s ease-out; }
 .animate-success-glow { animation: success-glow 1s ease-out; }
-.animate-boat-rock { animation: boat-rock 2s ease-in-out infinite; }
+.animate-boat-rock { animation: boat-rock 3s ease-in-out infinite; }
+.animate-colon-blink { animation: colon-blink 1s step-end infinite; }
+.animate-count-up { animation: count-up 0.3s ease-out forwards; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+
+.counter-animate {
+  animation: count-up 0.6s ease-out forwards;
+}
+
+/* =============================================
+   CONFETTI VARIANTS
+   ============================================= */
 
 .confetti-piece {
   position: fixed;
@@ -126,51 +632,212 @@ body {
   height: 10px;
   top: -10px;
   animation: confetti-fall 3s ease-in-out forwards, confetti-shake 1s ease-in-out infinite;
+  z-index: 60;
+  pointer-events: none;
 }
 
-/* Water surface pattern */
-.water-surface {
-  background: linear-gradient(180deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+.confetti-star {
+  position: fixed;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 12px solid var(--confetti-color, #FFD700);
+  top: -20px;
+  animation: confetti-fall 3.5s ease-in-out forwards, confetti-shake 0.8s ease-in-out infinite;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.confetti-circle {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  top: -10px;
+  animation: confetti-fall 2.8s ease-in-out forwards, confetti-shake 1.2s ease-in-out infinite;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.confetti-ribbon {
+  position: fixed;
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  top: -20px;
+  animation: confetti-fall 4s ease-in-out forwards, confetti-shake 0.6s ease-in-out infinite;
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* =============================================
+   GRASS TEXTURE
+   ============================================= */
+
+.grass-bank {
+  background: linear-gradient(180deg, #166534 0%, #15803d 40%, #16a34a 70%, #22c55e 100%);
   position: relative;
-  overflow: hidden;
 }
 
-.water-surface::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 20px,
-    rgba(255,255,255,0.05) 20px,
-    rgba(255,255,255,0.05) 40px
-  );
-  animation: wave 4s linear infinite;
+.dark .grass-bank {
+  background: linear-gradient(180deg, #14532d 0%, #166534 40%, #15803d 70%, #16a34a 100%);
 }
 
-.water-bg {
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 25%, #60a5fa 50%, #3b82f6 75%, #1e40af 100%);
-  background-size: 200% 200%;
-  animation: water-flow 4s ease-in-out infinite;
+/* =============================================
+   LOADING SPINNER
+   ============================================= */
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spinner 0.6s linear infinite;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* =============================================
+   SELECTION & FOCUS
+   ============================================= */
 
-/* Selection */
 ::selection {
   background: rgba(59, 130, 246, 0.3);
   color: inherit;
 }
 
-/* Category scroll */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* =============================================
+   CATEGORY SCROLL
+   ============================================= */
+
 .category-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
 }
+
 .category-scroll::-webkit-scrollbar {
   display: none;
 }
+
+.category-scroll > * {
+  scroll-snap-align: start;
+}
+
+/* =============================================
+   CARD HOVER EFFECTS
+   ============================================= */
+
+.card-hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-8px);
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* =============================================
+   DIFFICULTY DOTS
+   ============================================= */
+
+.difficulty-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid var(--border);
+  background: transparent;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+.difficulty-dot.active {
+  border-color: var(--dot-color, var(--color-primary));
+  background: var(--dot-color, var(--color-primary));
+  box-shadow: 0 0 8px var(--dot-color, var(--color-primary));
+}
+
+.difficulty-dot:hover {
+  border-color: var(--dot-color, var(--color-primary));
+  transform: scale(1.3);
+}
+
+/* =============================================
+   MINI ANIMATION PREVIEWS (Category Cards)
+   ============================================= */
+
+@keyframes mini-boat {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(30px); }
+}
+
+@keyframes mini-disc-shift {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-8px); }
+  50% { transform: translateX(12px) translateY(-8px); }
+  75% { transform: translateX(12px); }
+}
+
+@keyframes mini-water-fill {
+  0% { height: 20%; }
+  50% { height: 70%; }
+  100% { height: 20%; }
+}
+
+@keyframes mini-scale-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  75% { transform: rotate(5deg); }
+}
+
+@keyframes mini-light-blink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes mini-sort-swap {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(10px); }
+}
+
+@keyframes mini-shield-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+@keyframes mini-grid-scan {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes mini-torch-flicker {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes mini-escort-walk {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(8px); }
+  50% { transform: translateX(20px); }
+  75% { transform: translateX(8px); }
+}
+
+.mini-boat { animation: mini-boat 2s ease-in-out infinite; }
+.mini-disc { animation: mini-disc-shift 2s ease-in-out infinite; }
+.mini-water { animation: mini-water-fill 2.5s ease-in-out infinite; }
+.mini-scale { animation: mini-scale-tilt 2s ease-in-out infinite; }
+.mini-light { animation: mini-light-blink 1.5s ease-in-out infinite; }
+.mini-sort { animation: mini-sort-swap 1.5s ease-in-out infinite; }
+.mini-shield { animation: mini-shield-pulse 2s ease-in-out infinite; }
+.mini-grid { animation: mini-grid-scan 2s linear infinite; }
+.mini-torch { animation: mini-torch-flicker 1.5s ease-in-out infinite; }
+.mini-escort { animation: mini-escort-walk 2s ease-in-out infinite; }

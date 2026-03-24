@@ -10,6 +10,7 @@ import {
   type SequenceSortState,
 } from '@/engines/sequence-sort/engine';
 import { useAudio } from '@/hooks/useAudio';
+import { ArrowDownUp, RotateCcw, Repeat } from 'lucide-react';
 
 interface SequenceSortBoardProps {
   difficulty: number;
@@ -18,10 +19,17 @@ interface SequenceSortBoardProps {
   onFail?: (reason: string) => void;
 }
 
-const ITEM_COLORS = [
-  'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500',
-  'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500',
-  'bg-teal-500', 'bg-cyan-500',
+const ITEM_GRADIENTS = [
+  'from-red-400 to-red-600',
+  'from-orange-400 to-orange-600',
+  'from-yellow-400 to-yellow-600',
+  'from-green-400 to-green-600',
+  'from-blue-400 to-blue-600',
+  'from-indigo-400 to-indigo-600',
+  'from-purple-400 to-purple-600',
+  'from-pink-400 to-pink-600',
+  'from-teal-400 to-teal-600',
+  'from-cyan-400 to-cyan-600',
 ];
 
 export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: SequenceSortBoardProps) {
@@ -68,7 +76,6 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
         } else if (selectedIndex === index) {
           setSelectedIndex(null);
         } else {
-          // Swap adjacent only
           if (Math.abs(selectedIndex - index) === 1) {
             doOp('swap', Math.min(selectedIndex, index));
           } else {
@@ -108,8 +115,9 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
   }, [puzzle, playClick]);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4 text-sm">
+    <div className="space-y-5">
+      {/* Story */}
+      <div className="glass-card rounded-2xl p-4 text-sm">
         <p className="font-medium mb-2">{puzzle.story}</p>
         <ul className="space-y-1 text-[var(--text-secondary)]">
           {puzzle.rules.map((rule, i) => (
@@ -119,13 +127,16 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
       </div>
 
       {/* Goal */}
-      <div className="bg-success/10 border border-success/20 rounded-xl p-3 text-sm">
-        <span className="font-semibold text-success">목표 순서: </span>
-        <div className="flex gap-1 mt-1">
+      <div className="bg-emerald-500/10 border border-emerald-400/30 rounded-2xl p-4 backdrop-blur-sm">
+        <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">목표 순서: </span>
+        <div className="flex gap-2 mt-2">
           {puzzle.goalOrder.map((val, i) => {
             const item = itemMap.get(val);
             return (
-              <span key={i} className={`w-9 h-9 rounded-lg ${ITEM_COLORS[val % ITEM_COLORS.length]} text-white flex items-center justify-center text-sm font-bold`}>
+              <span
+                key={i}
+                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${ITEM_GRADIENTS[val % ITEM_GRADIENTS.length]} text-white flex items-center justify-center text-sm font-bold shadow-md`}
+              >
                 {item?.label ?? val}
               </span>
             );
@@ -135,8 +146,8 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
 
       {/* Current order */}
       <div className="text-center py-4">
-        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3">현재 순서</div>
-        <div className="flex gap-2 justify-center">
+        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-4 tracking-wider">현재 순서</div>
+        <div className="flex gap-2.5 justify-center">
           <AnimatePresence>
             {state.order.map((val, idx) => {
               const item = itemMap.get(val);
@@ -149,16 +160,23 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
                   layout
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.12, y: -4 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => handleItemClick(idx)}
-                  className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold text-white transition-all ${
-                    ITEM_COLORS[val % ITEM_COLORS.length]
-                  } ${isSelected ? 'ring-3 ring-primary ring-offset-2' : ''} ${
-                    isCorrect ? 'shadow-lg shadow-success/30' : ''
+                  className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-white transition-all duration-200 bg-gradient-to-br ${
+                    ITEM_GRADIENTS[val % ITEM_GRADIENTS.length]
+                  } shadow-lg ${
+                    isSelected ? 'ring-3 ring-blue-400 ring-offset-2 ring-offset-[var(--bg)] scale-110' : ''
+                  } ${
+                    isCorrect ? 'shadow-emerald-500/30' : 'shadow-black/10'
                   }`}
                 >
-                  <span className="text-sm">{item?.label ?? val}</span>
+                  <span className="text-base">{item?.label ?? val}</span>
+                  {isCorrect && (
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px]">
+                      ✓
+                    </span>
+                  )}
                 </motion.button>
               );
             })}
@@ -167,61 +185,72 @@ export function SequenceSortBoard({ difficulty, seed, onComplete, onFail }: Sequ
       </div>
 
       {/* Operations */}
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-4">
-        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-2">사용 가능한 연산</div>
-        <div className="flex flex-wrap gap-2">
+      <div className="glass-card rounded-2xl p-4">
+        <div className="text-xs font-bold text-[var(--text-secondary)] uppercase mb-3 tracking-wider">사용 가능한 연산</div>
+        <div className="space-y-3">
           {puzzle.allowedOps.includes('swap') && (
-            <div className="text-xs text-[var(--text-secondary)]">
-              <strong>교환(Swap):</strong> 인접한 두 항목 클릭
+            <div className="flex items-center gap-2 text-sm">
+              <ArrowDownUp className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="text-[var(--text-secondary)]"><strong>교환:</strong> 인접한 두 항목을 클릭하여 교환</span>
             </div>
           )}
           {puzzle.allowedOps.includes('flip') && (
-            <div className="flex gap-1 flex-wrap items-center">
-              <span className="text-xs font-medium">뒤집기:</span>
-              {Array.from({ length: state.order.length - 1 }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleFlip(i + 2)}
-                  disabled={state.isComplete}
-                  className="px-2 py-1 text-xs rounded-lg bg-[var(--card)] border border-[var(--border)] hover:border-primary disabled:opacity-40 transition-colors"
-                >
-                  처음 {i + 2}개
-                </button>
-              ))}
+            <div>
+              <div className="flex items-center gap-2 text-sm mb-2">
+                <RotateCcw className="w-4 h-4 text-purple-500 shrink-0" />
+                <span className="font-semibold">뒤집기</span>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {Array.from({ length: state.order.length - 1 }, (_, i) => (
+                  <motion.button
+                    key={i}
+                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => handleFlip(i + 2)}
+                    disabled={state.isComplete}
+                    className="px-3 py-2 text-xs rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-white/30 dark:border-white/10 hover:border-purple-400 disabled:opacity-40 transition-all font-semibold shadow-sm"
+                  >
+                    처음 {i + 2}개
+                  </motion.button>
+                ))}
+              </div>
             </div>
           )}
           {puzzle.allowedOps.includes('rotate') && (
-            <div className="flex gap-1 flex-wrap items-center">
-              <span className="text-xs font-medium">회전:</span>
-              {Array.from({ length: state.order.length - 2 }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleRotate(i, 3)}
-                  disabled={state.isComplete}
-                  className="px-2 py-1 text-xs rounded-lg bg-[var(--card)] border border-[var(--border)] hover:border-primary disabled:opacity-40 transition-colors"
-                >
-                  위치 {i + 1}부터 3개
-                </button>
-              ))}
+            <div>
+              <div className="flex items-center gap-2 text-sm mb-2">
+                <Repeat className="w-4 h-4 text-teal-500 shrink-0" />
+                <span className="font-semibold">회전</span>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {Array.from({ length: state.order.length - 2 }, (_, i) => (
+                  <motion.button
+                    key={i}
+                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ scale: 1.05 }}
+                    onClick={() => handleRotate(i, 3)}
+                    disabled={state.isComplete}
+                    className="px-3 py-2 text-xs rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-white/30 dark:border-white/10 hover:border-teal-400 disabled:opacity-40 transition-all font-semibold shadow-sm"
+                  >
+                    위치 {i + 1}부터 3개
+                  </motion.button>
+                ))}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center">
-        <button
-          onClick={handleUndo}
-          disabled={state.moveHistory.length === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors"
-        >
+      {/* Actions */}
+      <div className="flex flex-wrap gap-3 justify-center">
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleUndo} disabled={state.moveHistory.length === 0}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold disabled:opacity-40 hover:bg-[var(--border)] transition-colors">
           되돌리기
-        </button>
-        <button
-          onClick={handleReset}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors"
-        >
+        </motion.button>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={handleReset}
+          className="px-5 py-3 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-semibold hover:bg-[var(--border)] transition-colors">
           처음부터
-        </button>
+        </motion.button>
       </div>
 
       <div className="text-center text-sm text-[var(--text-secondary)]">

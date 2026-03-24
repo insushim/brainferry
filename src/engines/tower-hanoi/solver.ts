@@ -10,6 +10,9 @@ export function solveHanoi(puzzle: HanoiPuzzle): SolverResult<HanoiMove> {
     (puzzle.moveRestrictions ?? []).map(r => `${r.from}-${r.to}`)
   );
 
+  const discColors = puzzle.discColors;
+  const pegColorRestrictions = puzzle.pegColorRestrictions;
+
   const initialState: HanoiSolverState = {
     pegs: puzzle.initialState.map(p => [...p]),
   };
@@ -32,6 +35,15 @@ export function solveHanoi(puzzle: HanoiPuzzle): SolverResult<HanoiMove> {
           if (forbiddenMoves.has(`${from}-${to}`)) continue;
           const toPeg = state.pegs[to];
           if (toPeg.length > 0 && toPeg[toPeg.length - 1] < disc) continue;
+
+          // Color restriction check: can this disc be placed on this peg?
+          if (discColors && pegColorRestrictions) {
+            const discColor = discColors[disc - 1]; // disc sizes are 1-based
+            if (pegColorRestrictions[to] && pegColorRestrictions[to].includes(discColor)) {
+              continue; // This peg forbids this disc's color
+            }
+          }
+
           moves.push({ from, to, disc });
         }
       }

@@ -27,27 +27,94 @@ export function createInitialState(puzzle: BodyguardPuzzle): BodyguardState {
   };
 }
 
+/**
+ * Build the effective protection map considering double-agent variant.
+ */
+function getProtectionMap(puzzle: BodyguardPuzzle): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const pair of puzzle.pairs) {
+    map.set(pair.charge.id, pair.protector.id);
+  }
+
+  if (puzzle.variant === 'double-agent' && puzzle.doubleAgentId !== undefined && puzzle.doubleAgentTargetPair !== undefined) {
+    const agentId = puzzle.doubleAgentId;
+    const targetCharge = puzzle.pairs[puzzle.doubleAgentTargetPair].charge.id;
+
+    let originalCharge: string | undefined;
+    for (const pair of puzzle.pairs) {
+      if (pair.protector.id === agentId) {
+        originalCharge = pair.charge.id;
+        break;
+      }
+    }
+
+    if (originalCharge) {
+      map.set(targetCharge, agentId);
+      map.delete(originalCharge);
+    }
+  }
+
+  return map;
+}
+
 function checkBankValid(
   bankIds: string[],
-  pairs: BodyguardPuzzle['pairs']
+  puzzle: BodyguardPuzzle
 ): { valid: boolean; reason?: string } {
   const bankSet = new Set(bankIds);
+  if (bankSet.size === 0) return { valid: true };
 
-  for (const pair of pairs) {
-    if (!bankSet.has(pair.charge.id)) continue;
-    if (bankSet.has(pair.protector.id)) continue;
+  const protectionMap = getProtectionMap(puzzle);
+  const allProtectorIds = puzzle.pairs.map(p => p.protector.id);
 
-    // Charge without own protector
-    for (const otherPair of pairs) {
-      if (otherPair === pair) continue;
-      if (bankSet.has(otherPair.protector.id)) {
+  for (const pair of puzzle.pairs) {
+    const chargeId = pair.charge.id;
+    if (!bankSet.has(chargeId)) continue;
+
+    const myProtector = protectionMap.get(chargeId);
+    if (myProtector && bankSet.has(myProtector)) continue; // safe
+
+    // Charge without protector — check for dangerous protectors
+    for (const protId of allProtectorIds) {
+      if (protId === myProtector) continue;
+      if (!bankSet.has(protId)) continue;
+
+      // Hierarchy variant: only dangerous if the other protector has higher rank
+      if (puzzle.variant === 'hierarchy' && puzzle.protectorRanks) {
+        const otherPairIdx = puzzle.pairs.findIndex(p => p.protector.id === protId);
+        const chargePairIdx = puzzle.pairs.findIndex(p => p.charge.id === chargeId);
+        if (otherPairIdx >= 0 && chargePairIdx >= 0) {
+          const otherRank = puzzle.protectorRanks[otherPairIdx];
+          const myRank = puzzle.protectorRanks[chargePairIdx];
+          if (otherRank <= myRank) continue; // not dangerous
+        }
+      }
+
+      const otherPair = puzzle.pairs.find(p => p.protector.id === protId);
+      const protectorName = myProtector
+        ? puzzle.pairs.find(p => p.protector.id === myProtector)?.protector.name ?? myProtector
+        : '(없음)';
+      return {
+        valid: false,
+        reason: `${pair.charge.name}이(가) 자신의 보디가드(${protectorName}) 없이 다른 보디가드(${otherPair?.protector.name})와 함께 있습니다!`,
+      };
+    }
+  }
+
+  // Exclusive pairs check
+  if (puzzle.variant === 'exclusive' && puzzle.exclusivePairs) {
+    for (const ep of puzzle.exclusivePairs) {
+      if (bankSet.has(ep.idA) && bankSet.has(ep.idB)) {
+        const nameA = puzzle.pairs.find(p => p.protector.id === ep.idA)?.protector.name ?? ep.idA;
+        const nameB = puzzle.pairs.find(p => p.protector.id === ep.idB)?.protector.name ?? ep.idB;
         return {
           valid: false,
-          reason: `${pair.charge.name}이(가) 자신의 보디가드(${pair.protector.name}) 없이 다른 보디가드(${otherPair.protector.name})와 함께 있습니다!`,
+          reason: `${nameA}와(과) ${nameB}는 같은 강변에 있으면 안 됩니다!`,
         };
       }
     }
   }
+
   return { valid: true };
 }
 
@@ -92,8 +159,8 @@ export function applyMove(
     }
   }
 
-  const leftCheck = newLeft.length > 0 ? checkBankValid(newLeft, puzzle.pairs) : { valid: true };
-  const rightCheck = newRight.length > 0 ? checkBankValid(newRight, puzzle.pairs) : { valid: true };
+  const leftCheck = newLeft.length > 0 ? checkBankValid(newLeft, puzzle) : { valid: true };
+  const rightCheck = newRight.length > 0 ? checkBankValid(newRight, puzzle) : { valid: true };
 
   const isFailed = !leftCheck.valid || !rightCheck.valid;
   const failReason = !leftCheck.valid ? leftCheck.reason : !rightCheck.valid ? rightCheck.reason : undefined;

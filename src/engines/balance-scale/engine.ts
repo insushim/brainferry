@@ -7,6 +7,8 @@ export interface BalanceScaleState {
   eliminatedCoins: Set<number>;
   suspectedCoins: Set<number>;
   answer: { coinIndex: number; isHeavier: boolean } | null;
+  // multiple-fake answer
+  multiAnswer?: { coinIndex: number; isHeavier: boolean }[];
   isComplete: boolean;
   isFailed: boolean;
   failReason?: string;
@@ -47,15 +49,41 @@ export function weigh(
     return { error: `최대 측정 횟수(${puzzle.maxWeighings}회)를 초과했습니다.` };
   }
 
-  // Determine result
-  let result: 'left-heavy' | 'right-heavy' | 'balanced';
-  if (left.includes(puzzle.fakeCoinIndex)) {
-    result = puzzle.fakeIsHeavier ? 'left-heavy' : 'right-heavy';
-  } else if (right.includes(puzzle.fakeCoinIndex)) {
-    result = puzzle.fakeIsHeavier ? 'right-heavy' : 'left-heavy';
+  // Determine result based on variant
+  let leftWeight = left.length;
+  let rightWeight = right.length;
+
+  if (puzzle.variant === 'multiple-fake' && puzzle.fakeCoinIndices && puzzle.fakeWeights) {
+    for (let f = 0; f < puzzle.fakeCoinIndices.length; f++) {
+      const fIdx = puzzle.fakeCoinIndices[f];
+      const isHeavier = puzzle.fakeWeights[f];
+      if (left.includes(fIdx)) {
+        leftWeight += isHeavier ? 1 : -1;
+      } else if (right.includes(fIdx)) {
+        rightWeight += isHeavier ? 1 : -1;
+      }
+    }
   } else {
-    result = 'balanced';
+    if (left.includes(puzzle.fakeCoinIndex)) {
+      leftWeight += puzzle.fakeIsHeavier ? 1 : -1;
+    } else if (right.includes(puzzle.fakeCoinIndex)) {
+      rightWeight += puzzle.fakeIsHeavier ? 1 : -1;
+    }
   }
+
+  // Apply broken scale bias
+  if (puzzle.variant === 'broken-scale' && puzzle.brokenSide && puzzle.brokenBias) {
+    if (puzzle.brokenSide === 'left') {
+      leftWeight += puzzle.brokenBias;
+    } else {
+      rightWeight += puzzle.brokenBias;
+    }
+  }
+
+  let result: 'left-heavy' | 'right-heavy' | 'balanced';
+  if (leftWeight > rightWeight) result = 'left-heavy';
+  else if (rightWeight > leftWeight) result = 'right-heavy';
+  else result = 'balanced';
 
   const weighing: BalanceWeighing = { left, right, result };
 
@@ -81,6 +109,10 @@ export function submitAnswer(
     return { error: `유효하지 않은 동전 번호: ${coinIndex}` };
   }
 
+  if (puzzle.variant === 'multiple-fake' && puzzle.fakeCoinIndices && puzzle.fakeWeights) {
+    return { error: '다중 가짜 변형에서는 submitMultiAnswer를 사용하세요.' };
+  }
+
   const isCorrect = coinIndex === puzzle.fakeCoinIndex && isHeavier === puzzle.fakeIsHeavier;
 
   return {
@@ -90,6 +122,44 @@ export function submitAnswer(
     isFailed: !isCorrect,
     failReason: !isCorrect
       ? `오답입니다! 가짜 동전은 ${puzzle.fakeCoinIndex + 1}번이고, ${puzzle.fakeIsHeavier ? '더 무겁습니다' : '더 가볍습니다'}.`
+      : undefined,
+  };
+}
+
+export function submitMultiAnswer(
+  state: BalanceScaleState,
+  answers: { coinIndex: number; isHeavier: boolean }[],
+  puzzle: BalanceScalePuzzle
+): BalanceScaleState | { error: string } {
+  if (puzzle.variant !== 'multiple-fake' || !puzzle.fakeCoinIndices || !puzzle.fakeWeights) {
+    return { error: '이 변형에서는 submitAnswer를 사용하세요.' };
+  }
+
+  // Check if all fakes identified correctly
+  const expectedSet = new Set(puzzle.fakeCoinIndices.map((idx, i) => `${idx}:${puzzle.fakeWeights![i]}`));
+  const answerSet = new Set(answers.map(a => `${a.coinIndex}:${a.isHeavier}`));
+
+  let isCorrect = expectedSet.size === answerSet.size;
+  if (isCorrect) {
+    for (const key of expectedSet) {
+      if (!answerSet.has(key)) {
+        isCorrect = false;
+        break;
+      }
+    }
+  }
+
+  const failDetail = puzzle.fakeCoinIndices
+    .map((idx, i) => `${idx + 1}번(${puzzle.fakeWeights![i] ? '무거움' : '가벼움'})`)
+    .join(', ');
+
+  return {
+    ...state,
+    multiAnswer: answers,
+    isComplete: isCorrect,
+    isFailed: !isCorrect,
+    failReason: !isCorrect
+      ? `오답입니다! 가짜 동전: ${failDetail}`
       : undefined,
   };
 }

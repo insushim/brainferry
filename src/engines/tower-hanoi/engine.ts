@@ -34,12 +34,21 @@ export function applyMove(
     return { error: '맨 위 원반만 이동할 수 있습니다.' };
   }
 
-  // Check move restrictions
+  // Check move restrictions (detour variant)
   if (puzzle.moveRestrictions) {
     for (const r of puzzle.moveRestrictions) {
       if (r.from === move.from && r.to === move.to) {
         return { error: `기둥 ${move.from + 1}에서 기둥 ${move.to + 1}(으)로 직접 이동할 수 없습니다.` };
       }
+    }
+  }
+
+  // Check color restriction (color-restrict variant)
+  if (puzzle.discColors && puzzle.pegColorRestrictions) {
+    const discColor = puzzle.discColors[disc - 1]; // disc sizes are 1-based
+    if (puzzle.pegColorRestrictions[move.to] && puzzle.pegColorRestrictions[move.to].includes(discColor)) {
+      const colorNames = ['🔴빨강', '🔵파랑'];
+      return { error: `기둥 ${move.to + 1}에 ${colorNames[discColor]} 원반을 놓을 수 없습니다!` };
     }
   }
 

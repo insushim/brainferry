@@ -6,6 +6,7 @@ export interface BridgeTorchState {
   torchPosition: 'left' | 'right';
   elapsedTime: number;
   timeLimit: number;
+  crossingsUsed: number;
   steps: number;
   moveHistory: BridgeMove[];
   isComplete: boolean;
@@ -20,6 +21,7 @@ export function createInitialState(puzzle: BridgeTorchPuzzle): BridgeTorchState 
     torchPosition: 'left',
     elapsedTime: 0,
     timeLimit: puzzle.timeLimit,
+    crossingsUsed: 0,
     steps: 0,
     moveHistory: [],
     isComplete: false,
@@ -43,8 +45,12 @@ export function applyMove(
     return { error: '횃불이 오른쪽에 있어야 돌아올 수 있습니다.' };
   }
 
-  if (move.direction === 'forward' && move.people.length > puzzle.bridgeCapacity) {
-    return { error: `다리에는 최대 ${puzzle.bridgeCapacity}명까지 건널 수 있습니다.` };
+  const cap = (move.bridgeIndex === 1 && puzzle.bridge2Capacity)
+    ? puzzle.bridge2Capacity
+    : puzzle.bridgeCapacity;
+
+  if (move.direction === 'forward' && move.people.length > cap) {
+    return { error: `다리에는 최대 ${cap}명까지 건널 수 있습니다.` };
   }
   if (move.direction === 'back' && move.people.length > 1) {
     return { error: '돌아올 때는 1명만 가능합니다.' };
@@ -57,8 +63,26 @@ export function applyMove(
     }
   }
 
+  // Bridge durability check
+  if (puzzle.variant === 'bridge-durability' && puzzle.bridgeDurability !== undefined) {
+    if (state.crossingsUsed >= puzzle.bridgeDurability) {
+      return { error: `다리 내구도 한계(${puzzle.bridgeDurability}번)에 도달했습니다!` };
+    }
+  }
+
   const speedMap = new Map(puzzle.people.map(p => [p.id, p.speed]));
-  const time = Math.max(...move.people.map(id => speedMap.get(id)!));
+  let time = Math.max(...move.people.map(id => speedMap.get(id)!));
+
+  // Two-bridges speed mod
+  if (puzzle.variant === 'two-bridges' && move.bridgeIndex === 1) {
+    time = time * (puzzle.bridge2SpeedMod ?? 2);
+  }
+
+  // Battery drain
+  if (puzzle.variant === 'battery-drain') {
+    time += state.crossingsUsed * (puzzle.batteryDrainRate ?? 0);
+  }
+
   const newElapsed = state.elapsedTime + time;
 
   const newLeft = [...state.leftSide];
@@ -85,6 +109,7 @@ export function applyMove(
     torchPosition: move.direction === 'forward' ? 'right' : 'left',
     elapsedTime: newElapsed,
     timeLimit: puzzle.timeLimit,
+    crossingsUsed: state.crossingsUsed + 1,
     steps: state.steps + 1,
     moveHistory: [...state.moveHistory, { ...move, time }],
     isComplete,
@@ -118,6 +143,7 @@ export function undo(state: BridgeTorchState): BridgeTorchState {
     torchPosition: lastMove.direction === 'forward' ? 'left' : 'right',
     elapsedTime: state.elapsedTime - lastMove.time,
     timeLimit: state.timeLimit,
+    crossingsUsed: state.crossingsUsed - 1,
     steps: state.steps - 1,
     moveHistory: state.moveHistory.slice(0, -1),
     isComplete: false,
