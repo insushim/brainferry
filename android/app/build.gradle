@@ -16,8 +16,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            minifyEnabled false
         }
     }
 
@@ -28,5 +27,4 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.browser:browser:1.8.0'
 }
