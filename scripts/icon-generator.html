@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>BrainFerry Icon Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0F172A; color: #E2E8F0; padding: 2rem; }
+    h1 { margin-bottom: 1rem; background: linear-gradient(135deg, #3B82F6, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .controls { margin-bottom: 2rem; }
+    button { background: #3B82F6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-size: 1rem; cursor: pointer; margin-right: 0.5rem; }
+    button:hover { background: #2563EB; }
+    .icons { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .icon-item { text-align: center; background: #1E293B; padding: 1rem; border-radius: 0.5rem; }
+    .icon-item canvas { display: block; margin: 0 auto 0.5rem; }
+    .icon-item a { color: #3B82F6; text-decoration: none; font-size: 0.875rem; }
+    .status { margin-top: 1rem; color: #94A3B8; }
+  </style>
+</head>
+<body>
+  <h1>BrainFerry Icon Generator</h1>
+  <div class="controls">
+    <button id="generateBtn">Generate All PNGs</button>
+    <button id="downloadAllBtn" disabled>Download All</button>
+  </div>
+  <div class="status" id="status">Click "Generate All PNGs" to start.</div>
+  <div class="icons" id="icons"></div>
+
+  <script>
+    const SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
+    const svgSource = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF"/>
+      <stop offset="100%" style="stop-color:#E0E7FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <g transform="translate(256,240)" fill="none" stroke="url(#brain)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-10,-90 C-60,-90 -110,-70 -120,-20 C-130,30 -100,60 -80,80 C-60,100 -30,110 -10,100" fill="url(#brain)" fill-opacity="0.15"/>
+    <path d="M-10,-90 C-60,-90 -110,-70 -120,-20 C-130,30 -100,60 -80,80 C-60,100 -30,110 -10,100"/>
+    <path d="M10,-90 C60,-90 110,-70 120,-20 C130,30 100,60 80,80 C60,100 30,110 10,100" fill="url(#brain)" fill-opacity="0.15"/>
+    <path d="M10,-90 C60,-90 110,-70 120,-20 C130,30 100,60 80,80 C60,100 30,110 10,100"/>
+    <line x1="0" y1="-85" x2="0" y2="95"/>
+    <path d="M-10,-40 C-50,-35 -70,-15 -65,15"/>
+    <path d="M-10,10 C-45,15 -70,35 -55,60"/>
+    <path d="M10,-40 C50,-35 70,-15 65,15"/>
+    <path d="M10,10 C45,15 70,35 55,60"/>
+    <circle cx="125" cy="-20" r="20" fill="#0F172A" stroke="none"/>
+    <circle cx="125" cy="-20" r="20" fill="url(#bg)" fill-opacity="0.6" stroke="url(#brain)" stroke-width="8"/>
+  </g>
+  <g transform="translate(0,400)" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.5">
+    <path d="M60,20 Q110,-10 160,20 Q210,50 260,20 Q310,-10 360,20 Q410,50 460,20"/>
+    <path d="M40,50 Q90,20 140,50 Q190,80 240,50 Q290,20 340,50 Q390,80 440,50"/>
+  </g>
+</svg>`;
+
+    const blobs = {};
+
+    function svgToCanvas(svgString, size) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, size, size);
+          URL.revokeObjectURL(url);
+          resolve(canvas);
+        };
+        img.src = url;
+      });
+    }
+
+    function canvasToBlob(canvas) {
+      return new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/png');
+      });
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const container = document.getElementById('icons');
+      const status = document.getElementById('status');
+      container.innerHTML = '';
+      status.textContent = 'Generating icons...';
+
+      for (const size of SIZES) {
+        const canvas = await svgToCanvas(svgSource, size);
+        const blob = await canvasToBlob(canvas);
+        const filename = `icon-${size}x${size}.png`;
+        blobs[filename] = blob;
+
+        const item = document.createElement('div');
+        item.className = 'icon-item';
+
+        const preview = document.createElement('canvas');
+        const previewSize = Math.min(size, 128);
+        preview.width = previewSize;
+        preview.height = previewSize;
+        const pCtx = preview.getContext('2d');
+        pCtx.drawImage(canvas, 0, 0, previewSize, previewSize);
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.textContent = `${filename} (Download)`;
+
+        item.appendChild(preview);
+        item.appendChild(link);
+        container.appendChild(item);
+
+        status.textContent = `Generated ${filename}`;
+      }
+
+      status.textContent = `All ${SIZES.length} icons generated. Click individual links to download, or "Download All".`;
+      document.getElementById('downloadAllBtn').disabled = false;
+    });
+
+    document.getElementById('downloadAllBtn').addEventListener('click', () => {
+      for (const [filename, blob] of Object.entries(blobs)) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    });
+  </script>
+</body>
+</html>

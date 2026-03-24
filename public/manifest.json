@@ -1,0 +1,16 @@
+{
+  "name": "BrainFerry - 무한한 두뇌 퍼즐",
+  "short_name": "BrainFerry",
+  "description": "AI가 아닌 수학이 만드는 진짜 퍼즐",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#3B82F6",
+  "orientation": "any",
+  "categories": ["games", "education"],
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "prefer_related_applications": false
+}
