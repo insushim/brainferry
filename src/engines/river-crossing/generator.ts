@@ -1,5 +1,6 @@
 import { SeededRandom } from '../seeded-random';
 import { BasePuzzle } from '../types';
+import { THEMES_KO, RiverCrossingTheme } from '../../data/themes-ko';
 import { solveRiverCrossing } from './solver';
 
 export type RiverVariant = 'basic' | 'weight-limit' | 'one-way' | 'two-boats' | 'island';
@@ -25,7 +26,7 @@ export interface RiverCrossingPuzzle extends BasePuzzle {
   solution: RiverMove[];
 }
 
-// ── Mini Theme Pool ──
+// ── Theme Adapter ──
 
 interface ThemeEntity {
   id: string;
@@ -44,124 +45,66 @@ interface Theme {
   owner: ThemeEntity;
   entities: ThemeEntity[];
   rules: PredationRule[];
-  storyTemplate: (owner: string, entities: string[], variantDesc: string) => string;
 }
 
-const THEMES: Theme[] = [
-  {
-    name: '농장',
-    owner: { id: 'farmer', name: '농부', emoji: '👨‍🌾' },
-    entities: [
-      { id: 'wolf', name: '늑대', emoji: '🐺' },
-      { id: 'sheep', name: '양', emoji: '🐑' },
-      { id: 'cabbage', name: '양배추', emoji: '🥬' },
-      { id: 'chicken', name: '닭', emoji: '🐔' },
-      { id: 'fox', name: '여우', emoji: '🦊' },
-      { id: 'grain', name: '곡식', emoji: '🌾' },
-      { id: 'dog', name: '개', emoji: '🐕' },
-      { id: 'cat', name: '고양이', emoji: '🐱' },
-      { id: 'mouse', name: '쥐', emoji: '🐭' },
-      { id: 'cheese', name: '치즈', emoji: '🧀' },
-    ],
-    rules: [
-      { predator: 'wolf', prey: 'sheep', description: '늑대가 양을 잡아먹습니다!' },
-      { predator: 'wolf', prey: 'chicken', description: '늑대가 닭을 잡아먹습니다!' },
-      { predator: 'sheep', prey: 'cabbage', description: '양이 양배추를 먹습니다!' },
-      { predator: 'chicken', prey: 'grain', description: '닭이 곡식을 먹습니다!' },
-      { predator: 'fox', prey: 'chicken', description: '여우가 닭을 잡아먹습니다!' },
-      { predator: 'fox', prey: 'mouse', description: '여우가 쥐를 잡아먹습니다!' },
-      { predator: 'cat', prey: 'mouse', description: '고양이가 쥐를 잡아먹습니다!' },
-      { predator: 'cat', prey: 'chicken', description: '고양이가 닭을 잡아먹습니다!' },
-      { predator: 'dog', prey: 'cat', description: '개가 고양이를 쫓아갑니다!' },
-      { predator: 'mouse', prey: 'cheese', description: '쥐가 치즈를 먹습니다!' },
-      { predator: 'mouse', prey: 'grain', description: '쥐가 곡식을 먹습니다!' },
-    ],
-    storyTemplate: (owner, entities, variantDesc) =>
-      `${owner}이(가) ${entities.join(', ')}을(를) 데리고 강을 건너야 합니다. ${variantDesc}`,
+// Owner ID mapping for themes-ko.ts themes
+const OWNER_IDS: Record<string, string> = {
+  '농부': 'farmer', '마법사': 'wizard', '선장': 'captain',
+  '어부': 'fisherman', '선생님': 'teacher', '셰프': 'chef',
+  '탐험가': 'explorer', '해적선장': 'pirate_captain',
+};
+
+// Convert themes-ko.ts format to internal Theme format
+const THEMES: Theme[] = Object.values(THEMES_KO.riverCrossing).map((t: RiverCrossingTheme) => ({
+  name: t.name,
+  owner: {
+    id: OWNER_IDS[t.owner.name] ?? t.owner.name.toLowerCase().replace(/\s/g, '_'),
+    name: t.owner.name,
+    emoji: t.owner.emoji,
   },
-  {
-    name: '정글',
-    owner: { id: 'explorer', name: '탐험가', emoji: '🧭' },
-    entities: [
-      { id: 'lion', name: '사자', emoji: '🦁' },
-      { id: 'zebra', name: '얼룩말', emoji: '🦓' },
-      { id: 'monkey', name: '원숭이', emoji: '🐒' },
-      { id: 'banana', name: '바나나', emoji: '🍌' },
-      { id: 'snake', name: '뱀', emoji: '🐍' },
-      { id: 'frog', name: '개구리', emoji: '🐸' },
-      { id: 'parrot', name: '앵무새', emoji: '🦜' },
-      { id: 'crocodile', name: '악어', emoji: '🐊' },
-      { id: 'fish', name: '물고기', emoji: '🐟' },
-      { id: 'berry', name: '열매', emoji: '🫐' },
-    ],
-    rules: [
-      { predator: 'lion', prey: 'zebra', description: '사자가 얼룩말을 잡아먹습니다!' },
-      { predator: 'lion', prey: 'monkey', description: '사자가 원숭이를 잡아먹습니다!' },
-      { predator: 'monkey', prey: 'banana', description: '원숭이가 바나나를 먹습니다!' },
-      { predator: 'snake', prey: 'frog', description: '뱀이 개구리를 잡아먹습니다!' },
-      { predator: 'snake', prey: 'monkey', description: '뱀이 원숭이를 공격합니다!' },
-      { predator: 'crocodile', prey: 'fish', description: '악어가 물고기를 잡아먹습니다!' },
-      { predator: 'crocodile', prey: 'zebra', description: '악어가 얼룩말을 공격합니다!' },
-      { predator: 'crocodile', prey: 'frog', description: '악어가 개구리를 잡아먹습니다!' },
-      { predator: 'parrot', prey: 'berry', description: '앵무새가 열매를 먹습니다!' },
-      { predator: 'monkey', prey: 'berry', description: '원숭이가 열매를 먹습니다!' },
-      { predator: 'lion', prey: 'fish', description: '사자가 물고기를 잡아먹습니다!' },
-    ],
-    storyTemplate: (owner, entities, variantDesc) =>
-      `${owner}가 정글에서 ${entities.join(', ')}을(를) 데리고 강을 건너야 합니다. ${variantDesc}`,
-  },
-  {
-    name: '마법의 숲',
-    owner: { id: 'wizard', name: '마법사', emoji: '🧙' },
-    entities: [
-      { id: 'dragon', name: '드래곤', emoji: '🐉' },
-      { id: 'knight', name: '기사', emoji: '🤺' },
-      { id: 'princess', name: '공주', emoji: '👸' },
-      { id: 'goblin', name: '고블린', emoji: '👺' },
-      { id: 'fairy', name: '요정', emoji: '🧚' },
-      { id: 'unicorn', name: '유니콘', emoji: '🦄' },
-      { id: 'flower', name: '마법꽃', emoji: '🌺' },
-      { id: 'troll', name: '트롤', emoji: '👹' },
-      { id: 'elf', name: '엘프', emoji: '🧝' },
-      { id: 'gem', name: '보석', emoji: '💎' },
-    ],
-    rules: [
-      { predator: 'dragon', prey: 'knight', description: '드래곤이 기사를 공격합니다!' },
-      { predator: 'dragon', prey: 'princess', description: '드래곤이 공주를 납치합니다!' },
-      { predator: 'goblin', prey: 'fairy', description: '고블린이 요정을 잡아갑니다!' },
-      { predator: 'goblin', prey: 'gem', description: '고블린이 보석을 훔칩니다!' },
-      { predator: 'troll', prey: 'elf', description: '트롤이 엘프를 공격합니다!' },
-      { predator: 'troll', prey: 'unicorn', description: '트롤이 유니콘을 공격합니다!' },
-      { predator: 'unicorn', prey: 'flower', description: '유니콘이 마법꽃을 먹습니다!' },
-      { predator: 'knight', prey: 'goblin', description: '기사가 고블린과 싸웁니다!' },
-      { predator: 'dragon', prey: 'fairy', description: '드래곤이 요정을 불태웁니다!' },
-      { predator: 'troll', prey: 'fairy', description: '트롤이 요정을 잡아갑니다!' },
-      { predator: 'goblin', prey: 'flower', description: '고블린이 마법꽃을 망가뜨립니다!' },
-    ],
-    storyTemplate: (owner, entities, variantDesc) =>
-      `${owner}가 마법의 숲에서 ${entities.join(', ')}과 함께 마법의 강을 건너야 합니다. ${variantDesc}`,
-  },
-];
+  entities: t.entities,
+  rules: t.predationRules.map(([predator, prey, description]) => ({
+    predator,
+    prey,
+    description,
+  })),
+}));
 
 const ENTITY_WEIGHTS: Record<string, number> = {
-  wolf: 3, sheep: 2, cabbage: 1, chicken: 1, fox: 2, grain: 1, dog: 3, cat: 2, mouse: 1, cheese: 1,
-  lion: 3, zebra: 3, monkey: 2, banana: 1, snake: 2, frog: 1, parrot: 1, crocodile: 3, fish: 1, berry: 1,
-  dragon: 3, knight: 3, princess: 2, goblin: 2, fairy: 1, unicorn: 3, flower: 1, troll: 3, elf: 2, gem: 1,
+  // farm
+  wolf: 3, sheep: 2, cabbage: 1, chicken: 1, fox: 2, grain: 1, dog: 3, cat: 2, mouse: 1, cheese: 1, rabbit: 1, carrot: 1,
+  // fantasy
+  dragon: 3, princess: 2, treasure: 1, goblin: 2, unicorn: 3, elf: 2, orc: 3, fairy: 1, potion: 1, spellbook: 1, crystal: 1, mushroom: 1,
+  // space
+  alien: 3, robot: 2, energycell: 1, mineral: 1, spacedog: 2, plant: 1, crystal_s: 1, probe: 2, fuel: 1, satellite: 2,
+  // ocean
+  shark: 3, fish: 1, bait: 1, octopus: 3, crab: 1, seagull: 2, clam: 1, seaweed: 1, pearl: 1, turtle: 2,
+  // school
+  puppy: 2, kitty: 2, hamster: 1, parrot: 1, fishbowl: 1, snack: 1, homework: 1, paint: 1, ball: 1, flower: 1,
+  // kitchen
+  rat: 2, cake: 1, ant: 1, sugar: 1, honey: 1, bread: 1, butter: 1, fruit: 1, icecream: 1, fire: 2,
+  // dinosaur
+  trex: 3, bronto: 3, raptor: 2, egg: 1, fern: 1, berry: 1, pterodactyl: 2, fossil: 1, insect: 1, baby_dino: 1,
+  // pirate
+  monkey_p: 2, parrot_p: 1, goldchest: 2, map: 1, cannon: 3, rum: 1, banana: 1, rival: 3, sword: 2, coconut: 1,
+  // legacy (정글/마법의 숲 inline themes)
+  knight: 3, lion: 3, zebra: 3, monkey: 2, banana_l: 1, snake: 2, frog: 1, crocodile: 3, gem: 1, troll: 3,
 };
 
 function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
-  if (difficulty <= 1) return 'basic';
-  if (difficulty <= 3) return rng.pick(['basic', 'weight-limit']);
+  if (difficulty <= 1) return rng.pick(['basic', 'basic', 'basic', 'weight-limit', 'weight-limit']);
+  if (difficulty <= 3) return rng.pick(['basic', 'weight-limit', 'weight-limit']);
   if (difficulty <= 5) return rng.pick(['weight-limit', 'one-way']);
   if (difficulty <= 7) return rng.pick(['one-way', 'two-boats']);
   return rng.pick(['two-boats', 'island']);
 }
 
-function getEntityCount(difficulty: number): number {
-  if (difficulty <= 3) return 3;
-  if (difficulty <= 6) return 4;
-  if (difficulty <= 8) return 5;
-  return 6;
+function getEntityCount(difficulty: number, rng: SeededRandom): number {
+  if (difficulty <= 1) return rng.pick([2, 3, 3]);
+  if (difficulty <= 3) return rng.pick([3, 3, 4]);
+  if (difficulty <= 6) return rng.pick([3, 4, 4, 5]);
+  if (difficulty <= 8) return rng.pick([4, 5, 5]);
+  return rng.pick([5, 6]);
 }
 
 function getVariantDescription(variant: RiverVariant, puzzle: Partial<RiverCrossingPuzzle>, ownerName: string): string {
@@ -186,7 +129,7 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
     const rng = new SeededRandom(seed + attempt);
     const theme = rng.pick(THEMES);
     const variant = getVariant(difficulty, rng);
-    const entityCount = getEntityCount(difficulty);
+    const entityCount = getEntityCount(difficulty, rng);
 
     const selectedEntities = rng.pickN(theme.entities, entityCount);
     const selectedIds = new Set(selectedEntities.map(e => e.id));
@@ -197,8 +140,21 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
 
     if (applicableRules.length === 0) continue;
 
-    // Variant-specific configuration
-    let boatCapacity = difficulty <= 7 ? 1 : 2;
+    // Variant-specific configuration — capacity varies by entity count
+    let boatCapacity: number;
+    if (variant === 'basic' || variant === 'one-way') {
+      if (entityCount <= 2) {
+        boatCapacity = 1;
+      } else if (entityCount === 3 && difficulty <= 3) {
+        boatCapacity = rng.pick([1, 1, 2]);
+      } else if (entityCount >= 4 && difficulty <= 5) {
+        boatCapacity = rng.pick([1, 2]);
+      } else {
+        boatCapacity = difficulty <= 7 ? 1 : 2;
+      }
+    } else {
+      boatCapacity = difficulty <= 7 ? 1 : 2;
+    }
     let boatMaxWeight: number | undefined;
     let boat2Capacity: number | undefined;
     const entities: RiverCrossingPuzzle['entities'] = [];
@@ -272,11 +228,8 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
     // Generate story
     const entityNames = selectedEntities.map(e => `${e.emoji}${e.name}`);
     const variantDesc = getVariantDescription(variant, puzzle, theme.owner.name);
-    puzzle.story = theme.storyTemplate(
-      `${theme.owner.emoji}${theme.owner.name}`,
-      entityNames,
-      variantDesc
-    );
+    const ownerLabel = `${theme.owner.emoji}${theme.owner.name}`;
+    puzzle.story = `${ownerLabel}가 ${entityNames.join(', ')}을(를) 데리고 강을 건너야 합니다. ${variantDesc}`;
 
     // Generate rules
     puzzle.rules = [
