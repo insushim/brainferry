@@ -95,20 +95,22 @@ function getVariant(difficulty: number, rng: SeededRandom): SortVariant {
 function getItemCount(difficulty: number): number {
   if (difficulty <= 2) return 4;
   if (difficulty <= 4) return 5;
-  if (difficulty <= 6) return 5;
-  if (difficulty <= 8) return 6;
-  return 7;
+  if (difficulty <= 6) return 6;
+  if (difficulty <= 8) return 7;
+  return 8;
 }
 
 function getAllowedOps(difficulty: number, rng: SeededRandom): ('flip' | 'swap' | 'rotate')[] {
   if (difficulty <= 2) return ['swap'];
   if (difficulty <= 4) return rng.pick([['swap', 'flip'] as const, ['swap', 'rotate'] as const]).slice() as ('flip' | 'swap' | 'rotate')[];
   if (difficulty <= 6) return ['flip', 'swap'];
-  return rng.pick([
-    ['flip'] as const,
+  if (difficulty <= 8) return rng.pick([
     ['flip', 'rotate'] as const,
     ['swap', 'rotate'] as const,
+    ['flip', 'swap'] as const,
   ]).slice() as ('flip' | 'swap' | 'rotate')[];
+  // Max difficulty: all operations available but variants will add constraints
+  return ['flip', 'swap', 'rotate'];
 }
 
 export function generateSequenceSort(difficulty: number, seed: number): SequenceSortPuzzle {

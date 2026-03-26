@@ -62,10 +62,11 @@ const THEMES: HanoiTheme[] = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): HanoiVariant {
-  if (difficulty <= 3) return 'classic';
-  if (difficulty <= 6) return rng.pick(['classic', 'color-restrict']);
-  if (difficulty <= 8) return rng.pick(['color-restrict', 'detour']);
-  return rng.pick(['detour', 'dual-tower']);
+  if (difficulty <= 2) return 'classic';
+  if (difficulty <= 4) return rng.pick(['classic', 'color-restrict']);
+  if (difficulty <= 6) return rng.pick(['color-restrict', 'detour']);
+  if (difficulty <= 8) return rng.pick(['detour', 'dual-tower']);
+  return rng.pick(['dual-tower', 'color-restrict', 'detour']);
 }
 
 function getDiscCount(difficulty: number, variant: HanoiVariant): number {

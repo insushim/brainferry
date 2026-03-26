@@ -263,6 +263,17 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
       `같은 ${theme.switchName}을 두 번 누르면 원래대로 돌아갑니다.`,
     ];
 
+    // Variant-specific rule descriptions
+    if (variant === 'toggle-chain') {
+      puzzle.rules.push('⚠️ 체인 반응: 일부 스위치는 다른 스위치도 자동으로 작동시킵니다.');
+    }
+    if (variant === 'timer') {
+      puzzle.rules.push('⚠️ 타이머 시스템: 일부 전등은 시간이 지나면 자동으로 상태가 변합니다.');
+    }
+    if (variant === 'sequence') {
+      puzzle.rules.push('⚠️ 순서 제한: 스위치를 정해진 순서대로만 조작할 수 있습니다.');
+    }
+
     // Generate connection descriptions
     const connectionDesc: string[] = [];
     for (let sw = 0; sw < switchCount; sw++) {
@@ -296,18 +307,28 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
     puzzle.hints = [
       `최소 ${result.solution.length}번의 조작이 필요합니다.`,
     ];
-    if (result.solution.length > 0) {
+
+    // Basic hint for all variants
+    if (result.solution.length > 0 && variant !== 'sequence') {
       puzzle.hints.push(`${theme.switchName} ${result.solution[0] + 1}번을 먼저 눌러보세요.`);
     }
-    puzzle.hints.push('각 스위치는 0번 또는 1번만 누르면 됩니다 (두 번은 의미 없음).');
-    if (variant === 'toggle-chain') {
+
+    // Variant-specific hints
+    if (variant === 'basic') {
+      puzzle.hints.push('각 스위치는 0번 또는 1번만 누르면 됩니다 (두 번은 의미 없음).');
+      puzzle.hints.push('연결도를 파악하여 어떤 스위치가 어떤 전등에 영향을 주는지 확인하세요.');
+    } else if (variant === 'toggle-chain') {
       puzzle.hints.push('연쇄 반응을 고려하여 영향 범위를 파악하세요.');
-    }
-    if (variant === 'timer') {
+      puzzle.hints.push('한 스위치를 누르면 연결된 다른 스위치들도 자동으로 눌러집니다.');
+    } else if (variant === 'timer') {
       puzzle.hints.push('타이머를 고려해 동작 순서를 계획하세요.');
-    }
-    if (variant === 'sequence') {
+      puzzle.hints.push('타이머 전등들이 언제 자동으로 바뀌는지 예측하세요.');
+    } else if (variant === 'sequence') {
+      if (requiredOrder && requiredOrder.length > 0) {
+        puzzle.hints.push(`첫 번째로 ${theme.switchName} ${requiredOrder[0] + 1}번을 누르세요.`);
+      }
       puzzle.hints.push('순서를 지키면서 필요한 스위치만 선택하세요.');
+      puzzle.hints.push('잘못된 순서로 누르면 오류가 발생합니다.');
     }
 
     return puzzle;

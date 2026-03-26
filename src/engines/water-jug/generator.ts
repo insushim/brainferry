@@ -82,10 +82,11 @@ const THREE_JUG_CONFIGS: { caps: [number, number, number]; targets: number[] }[]
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): JugVariant {
-  if (difficulty <= 3) return 'basic-2';
-  if (difficulty <= 5) return rng.pick(['basic-2', 'basic-3']);
-  if (difficulty <= 7) return rng.pick(['basic-3', 'leaky']);
-  return rng.pick(['leaky', 'mixing']);
+  if (difficulty <= 2) return 'basic-2';
+  if (difficulty <= 4) return rng.pick(['basic-2', 'basic-3']);
+  if (difficulty <= 6) return rng.pick(['basic-3', 'leaky']);
+  if (difficulty <= 8) return rng.pick(['leaky', 'mixing']);
+  return 'mixing';  // 9-10은 항상 가장 복잡한 mixing
 }
 
 export function generateWaterJug(difficulty: number, seed: number): WaterJugPuzzle {

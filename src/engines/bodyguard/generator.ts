@@ -86,10 +86,11 @@ const THEMES: BodyguardTheme[] = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): BodyguardVariant {
-  if (difficulty <= 3) return 'basic';
-  if (difficulty <= 5) return rng.pick(['basic', 'exclusive']);
-  if (difficulty <= 7) return rng.pick(['exclusive', 'hierarchy']);
-  return rng.pick(['double-agent', 'hierarchy']);
+  if (difficulty <= 2) return 'basic';
+  if (difficulty <= 4) return rng.pick(['basic', 'exclusive']);
+  if (difficulty <= 6) return rng.pick(['exclusive', 'hierarchy']);
+  if (difficulty <= 8) return rng.pick(['hierarchy', 'exclusive']);
+  return rng.pick(['hierarchy', 'exclusive', 'basic']);
 }
 
 function getPairCount(difficulty: number): number {
@@ -134,22 +135,20 @@ export function generateBodyguard(difficulty: number, seed: number): BodyguardPu
     };
 
     // Variant-specific setup
-    if (variant === 'exclusive' && pairCount >= 3) {
-      // Pick two protectors who can't be on the same bank
-      const idxA = rng.int(0, pairCount - 1);
-      let idxB = rng.int(0, pairCount - 2);
-      if (idxB >= idxA) idxB++;
+    if (variant === 'exclusive' && pairCount >= 3) { // 3쌍일 때만 적용
+      // Pick two protectors who can't be on the same bank (not randomly overlapping)
+      const idxA = 0;
+      const idxB = 1;
       puzzle.exclusivePairs = [{
         idA: selectedPairs[idxA].protector.id,
         idB: selectedPairs[idxB].protector.id,
       }];
     }
 
-    if (variant === 'double-agent' && pairCount >= 3) {
+    if (variant === 'double-agent' && pairCount >= 3) { // 3쌍일 때만 적용
       // One protector actually protects a different pair's charge
-      const agentIdx = rng.int(0, pairCount - 1);
-      let targetIdx = rng.int(0, pairCount - 2);
-      if (targetIdx >= agentIdx) targetIdx++;
+      const agentIdx = 0;
+      const targetIdx = 1;
       puzzle.doubleAgentId = selectedPairs[agentIdx].protector.id;
       puzzle.doubleAgentTargetPair = targetIdx;
     }

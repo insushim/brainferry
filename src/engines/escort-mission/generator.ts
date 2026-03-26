@@ -90,28 +90,32 @@ const THEMES: EscortTheme[] = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): EscortVariant {
-  if (difficulty <= 3) return 'basic';
-  if (difficulty <= 6) return rng.pick(['basic', 'vip-escort']);
-  if (difficulty <= 8) return rng.pick(['vip-escort', 'traitor']);
-  return rng.pick(['traitor', 'three-groups']);
+  if (difficulty <= 1) return 'basic';
+  if (difficulty <= 3) return rng.pick(['basic', 'vip-escort']);
+  if (difficulty <= 5) return rng.pick(['vip-escort', 'traitor']);
+  if (difficulty <= 7) return rng.pick(['traitor', 'three-groups']);
+  return rng.pick(['three-groups', 'traitor']); // 최고난이도에서는 복잡한 변형 위주
 }
 
 function getGroupCounts(difficulty: number, variant: EscortVariant): { a: number; b: number; c?: number } {
   if (variant === 'three-groups') {
-    return { a: 2, b: 2, c: 2 };
+    if (difficulty <= 7) return { a: 2, b: 2, c: 2 };
+    return { a: 3, b: 3, c: 3 };
   }
   if (difficulty <= 2) return { a: 2, b: 2 };
   if (difficulty <= 4) return { a: 3, b: 3 };
-  if (difficulty <= 6) return { a: 3, b: 3 };
+  if (difficulty <= 6) return { a: 3, b: 4 }; // 비대칭으로 난이도 증가
   if (difficulty <= 8) return { a: 4, b: 4 };
-  return { a: 4, b: 4 };
+  return { a: 5, b: 5 }; // 최고 난이도
 }
 
 function getBoatCapacity(difficulty: number, variant: EscortVariant): number {
-  if (variant === 'three-groups') return 3;
-  if (difficulty <= 3) return 3;
-  if (difficulty <= 6) return 2;
-  return 2;
+  if (variant === 'three-groups') {
+    return difficulty <= 7 ? 3 : 2; // 높은 난이도에서는 보트 용량 감소
+  }
+  if (difficulty <= 2) return 3;
+  if (difficulty <= 5) return 2;
+  return 2; // 일관성 유지
 }
 
 export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
@@ -123,7 +127,7 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
     const variant = getVariant(difficulty, rng);
     const counts = getGroupCounts(difficulty, variant);
     const cap = getBoatCapacity(difficulty, variant);
-    const driverRequired = difficulty >= 3;
+    const driverRequired = difficulty >= 2; // 더 일찍 제약 추가
 
     const puzzle: EscortPuzzle = {
       seed,
@@ -220,6 +224,7 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
   }
 
   // Fallback
+  const fallbackDriverRequired = difficulty >= 2;
   return {
     seed,
     difficulty,
@@ -231,12 +236,13 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
       '보트에는 최대 2명까지 탈 수 있습니다.',
       '어느 강변에서든 왕족이 기사보다 많으면 안 됩니다.',
       '모든 인원을 오른쪽 강변으로 이동시키세요.',
+      ...(fallbackDriverRequired ? ['기사만 보트를 운전할 수 있습니다.'] : [])
     ],
     hints: ['최소 11번 이동이 필요합니다.'],
     groupA: { name: '기사', emoji: '⚔️', count: 3 },
     groupB: { name: '왕족', emoji: '👑', count: 3 },
     boatCapacity: 2,
-    driverRequired: false,
+    driverRequired: fallbackDriverRequired,
     solution: [
       { groupA: 1, groupB: 1, direction: 'left-to-right' },
       { groupA: 1, groupB: 0, direction: 'right-to-left' },

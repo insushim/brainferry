@@ -59,7 +59,7 @@ function getGridSize(difficulty: number): number {
 
 function getCategoryCount(difficulty: number): number {
   if (difficulty <= 2) return 3;
-  if (difficulty <= 5) return 3;
+  if (difficulty <= 4) return 3;
   if (difficulty <= 7) return 4;
   return 4;
 }
@@ -161,13 +161,16 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     }
 
     // Ordering clues for ordering variant
+    let orderingCategory: string | undefined;
+    let orderingValues: number[] | undefined;
     if (variant === 'ordering') {
       const orderingCatIdx = rng.int(1, categories.length - 1);
       const orderingCat = categories[orderingCatIdx];
+      orderingCategory = orderingCat.id;
       // Assign ordering values based on solution row
-      const orderValues: number[] = [];
+      orderingValues = [];
       for (let row = 0; row < gridSize; row++) {
-        orderValues.push(row + 1);
+        orderingValues.push(row + 1);
       }
 
       for (let i = 0; i < gridSize; i++) {
@@ -312,6 +315,8 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       gridSize,
       categories,
       clues: finalClues,
+      orderingCategory: variant === 'ordering' ? orderingCategory : undefined,
+      orderingValues: variant === 'ordering' ? orderingValues : undefined,
       liarClueIndex: variant === 'liar' ? liarClueIndex : undefined,
       conditionalClues: variant === 'conditional' ? conditionalClues : undefined,
       solution,
@@ -351,9 +356,15 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     // Generate story
     const catNames = categories.map(c => c.name).join(', ');
     let storyExtra = '';
-    if (variant === 'ordering') storyExtra = ' 순서 관계 단서도 포함되어 있습니다!';
-    if (variant === 'liar') storyExtra = ' ⚠️ 단서 중 하나가 거짓일 수 있습니다!';
-    if (variant === 'conditional') storyExtra = ' ⚠️ 일부 단서는 조건부입니다!';
+    if (variant === 'basic') {
+      storyExtra = ' 기본적인 논리 추론으로 해결할 수 있습니다.';
+    } else if (variant === 'ordering') {
+      storyExtra = ' 순서 관계 단서가 포함되어 있어 더 복잡한 추론이 필요합니다!';
+    } else if (variant === 'liar') {
+      storyExtra = ' ⚠️ 단서 중 하나가 거짓일 수 있습니다! 신중하게 검증하세요!';
+    } else if (variant === 'conditional') {
+      storyExtra = ' ⚠️ 일부 단서는 조건부입니다! 조건을 만족할 때만 적용됩니다!';
+    }
     puzzle.story = `${gridSize}명의 사람들에 대한 정보를 논리적으로 추리하세요. 각 사람의 ${catNames}을(를) 단서를 통해 알아내야 합니다.${storyExtra}`;
 
     puzzle.rules = [
@@ -376,19 +387,41 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
     puzzle.hints = [
       `총 ${minimized.length}개의 단서가 있습니다.`,
     ];
+
     const directInFinal = minimized.filter(c => c.type === 'direct_match');
-    if (directInFinal.length > 0) {
-      puzzle.hints.push(`"~은(는) ~이다" 형태의 직접 단서부터 시작하세요.`);
+    const liarInFinal = minimized.filter(c => c.type === 'liar');
+    const conditionalInFinal = minimized.filter(c => c.type === 'conditional');
+    const orderingInFinal = minimized.filter(c => c.type === 'ordering');
+
+    if (variant === 'basic') {
+      if (directInFinal.length > 0) {
+        puzzle.hints.push(`"~은(는) ~이다" 형태의 직접 단서부터 시작하세요.`);
+      }
+      puzzle.hints.push('소거법: 한 칸이 확정되면 같은 행과 열의 나머지를 제거하세요.');
+      puzzle.hints.push('단계별로 차근차근 진행하면 해결할 수 있습니다.');
+    } else if (variant === 'ordering') {
+      puzzle.hints.push('순서 관계를 먼저 파악하여 가능한 위치를 좁히세요.');
+      if (orderingInFinal.length > 0) {
+        puzzle.hints.push(`${orderingInFinal.length}개의 순서 단서가 중요한 열쇠입니다.`);
+      }
+      puzzle.hints.push('"A가 B보다 앞 순서"라는 것은 A의 번호가 B보다 작다는 의미입니다.');
+    } else if (variant === 'liar') {
+      puzzle.hints.push('먼저 의심스럽지 않은 단서들로 격자를 최대한 채워보세요.');
+      if (liarInFinal.length > 0) {
+        puzzle.hints.push('🤥 표시된 단서는 거짓일 가능성이 있으니 다른 단서로 검증하세요.');
+      }
+      puzzle.hints.push('모든 단서를 믿으면 모순이 생기는지 확인해보세요.');
+    } else if (variant === 'conditional') {
+      puzzle.hints.push('조건부 단서의 조건부터 먼저 확인하세요.');
+      if (conditionalInFinal.length > 0) {
+        puzzle.hints.push(`${conditionalInFinal.length}개의 조건부 단서가 있습니다. "만약...라면"을 주의 깊게 읽으세요.`);
+      }
+      puzzle.hints.push('조건이 참일 때만 결론이 성립한다는 점을 기억하세요.');
     }
-    puzzle.hints.push('소거법: 한 칸이 확정되면 같은 행과 열의 나머지를 제거하세요.');
-    if (variant === 'liar') {
-      puzzle.hints.push('먼저 확실한 단서들로 격자를 채운 뒤, 의심 단서를 검증하세요.');
-    }
-    if (variant === 'conditional') {
-      puzzle.hints.push('조건부 단서의 조건을 먼저 확인하세요.');
-    }
-    if (variant === 'ordering') {
-      puzzle.hints.push('순서 관계를 이용해 가능한 위치를 좁히세요.');
+
+    // Common hints for all variants
+    if (directInFinal.length > 0 && variant !== 'basic') {
+      puzzle.hints.push('직접 단서("~은(는) ~이다")를 먼저 처리하면 도움이 됩니다.');
     }
 
     return puzzle;

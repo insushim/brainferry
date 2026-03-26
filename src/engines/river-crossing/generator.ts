@@ -150,10 +150,10 @@ const ENTITY_WEIGHTS: Record<string, number> = {
 };
 
 function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
-  if (difficulty <= 2) return 'basic';
-  if (difficulty <= 4) return rng.pick(['basic', 'weight-limit']);
-  if (difficulty <= 6) return rng.pick(['weight-limit', 'one-way']);
-  if (difficulty <= 8) return rng.pick(['one-way', 'two-boats']);
+  if (difficulty <= 1) return 'basic';
+  if (difficulty <= 3) return rng.pick(['basic', 'weight-limit']);
+  if (difficulty <= 5) return rng.pick(['weight-limit', 'one-way']);
+  if (difficulty <= 7) return rng.pick(['one-way', 'two-boats']);
   return rng.pick(['two-boats', 'island']);
 }
 

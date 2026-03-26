@@ -79,16 +79,17 @@ const THEMES: BridgeTheme[] = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): BridgeVariant {
-  if (difficulty <= 3) return 'basic';
-  if (difficulty <= 6) return rng.pick(['basic', 'bridge-durability']);
-  if (difficulty <= 8) return rng.pick(['bridge-durability', 'two-bridges']);
-  return rng.pick(['two-bridges', 'battery-drain']);
+  if (difficulty <= 2) return 'basic';
+  if (difficulty <= 4) return rng.pick(['basic', 'bridge-durability']);
+  if (difficulty <= 6) return rng.pick(['bridge-durability', 'two-bridges']);
+  if (difficulty <= 8) return rng.pick(['two-bridges', 'battery-drain']);
+  return 'battery-drain';  // 9-10은 항상 가장 복잡한 battery-drain
 }
 
 function getPeopleCount(difficulty: number): number {
   if (difficulty <= 2) return 3;
   if (difficulty <= 4) return 4;
-  if (difficulty <= 6) return 4;
+  if (difficulty <= 6) return 5;  // 5-6에서도 5명으로 증가
   if (difficulty <= 8) return 5;
   return 6;
 }
