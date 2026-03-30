@@ -61,15 +61,18 @@ const THEMES: HanoiTheme[] = [
   },
 ];
 
-function getVariant(difficulty: number, rng: SeededRandom): HanoiVariant {
-  if (difficulty <= 2) return 'classic';
+function getVariant(difficulty: number, seed: number, rng: SeededRandom): HanoiVariant {
+  if (difficulty <= 2) {
+    const variants: HanoiVariant[] = ['classic', 'classic', 'color-restrict'];
+    return variants[seed % variants.length];
+  }
   if (difficulty <= 4) return rng.pick(['classic', 'color-restrict']);
   if (difficulty <= 6) return rng.pick(['color-restrict', 'detour']);
   if (difficulty <= 8) return rng.pick(['detour', 'dual-tower']);
   return rng.pick(['dual-tower', 'color-restrict', 'detour']);
 }
 
-function getDiscCount(difficulty: number, variant: HanoiVariant): number {
+function getDiscCount(difficulty: number, variant: HanoiVariant, seed: number): number {
   if (variant === 'dual-tower') {
     if (difficulty <= 8) return 4; // 2 sets of 2
     return 6; // 2 sets of 3
@@ -80,7 +83,10 @@ function getDiscCount(difficulty: number, variant: HanoiVariant): number {
     if (difficulty <= 6) return 4;
     return 5;
   }
-  if (difficulty <= 2) return 3;
+  if (difficulty <= 2) {
+    const options = [3, 4];
+    return options[seed % options.length];
+  }
   if (difficulty <= 4) return 4;
   if (difficulty <= 6) return 5;
   if (difficulty <= 8) return 6;
@@ -92,9 +98,9 @@ export function generateHanoi(difficulty: number, seed: number): HanoiPuzzle {
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
-    const variant = getVariant(difficulty, rng);
-    const discCount = getDiscCount(difficulty, variant);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
+    const variant = getVariant(difficulty, seed, rng);
+    const discCount = getDiscCount(difficulty, variant, seed);
     const pegCount = variant === 'dual-tower' ? 4 : 3;
 
     const discs = Array.from({ length: discCount }, (_, i) => discCount - i);

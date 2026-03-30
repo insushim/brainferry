@@ -70,21 +70,27 @@ const THEMES: BalanceTheme[] = [
   },
 ];
 
-function getVariant(difficulty: number, rng: SeededRandom): BalanceVariant {
-  if (difficulty <= 3) return 'basic';
+function getVariant(difficulty: number, seed: number, rng: SeededRandom): BalanceVariant {
+  if (difficulty <= 3) {
+    const variants: BalanceVariant[] = ['basic', 'basic', 'unknown-weight'];
+    return variants[seed % variants.length];
+  }
   if (difficulty <= 5) return rng.pick(['basic', 'unknown-weight']);
   if (difficulty <= 7) return rng.pick(['unknown-weight', 'broken-scale']);
   return rng.pick(['multiple-fake', 'broken-scale']);
 }
 
-function getCoinCount(difficulty: number, variant: BalanceVariant): number {
+function getCoinCount(difficulty: number, variant: BalanceVariant, seed: number): number {
   if (variant === 'multiple-fake') {
     // Fewer coins for multi-fake (harder to solve)
     if (difficulty <= 6) return 6;
     if (difficulty <= 8) return 8;
     return 9;
   }
-  if (difficulty <= 2) return 8;
+  if (difficulty <= 3) {
+    const options = [6, 8, 9];
+    return options[seed % options.length];
+  }
   if (difficulty <= 4) return 9;
   if (difficulty <= 6) return 10;
   if (difficulty <= 8) return 11;
@@ -107,12 +113,12 @@ export function generateBalanceScale(difficulty: number, seed: number): BalanceS
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
-    const variant = getVariant(difficulty, rng);
-    const coinCount = getCoinCount(difficulty, variant);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
+    const variant = getVariant(difficulty, seed, rng);
+    const coinCount = getCoinCount(difficulty, variant, seed);
     const maxWeighings = maxWeighingsForCoins(coinCount, variant);
     const fakeCoinIndex = rng.int(0, coinCount - 1);
-    const fakeIsHeavier = rng.boolean();
+    const fakeIsHeavier = (seed % 2) === 0;
 
     const puzzle: BalanceScalePuzzle = {
       seed,

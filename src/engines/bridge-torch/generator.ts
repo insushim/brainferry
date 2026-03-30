@@ -99,13 +99,30 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
     const variant = getVariant(difficulty, rng);
     const count = getPeopleCount(difficulty);
     const bridgeCapacity = 2;
 
-    const selectedPeople = rng.pickN(theme.people, count);
+    // Seed-based people rotation instead of random pick
+    const startIdx = (seed + attempt) % theme.people.length;
+    const selectedPeople = Array.from({ length: count }, (_, i) =>
+      theme.people[(startIdx + i) % theme.people.length]
+    );
     const speeds = rng.pickN(SPEED_POOL, count);
+
+    // Ensure no duplicate speeds
+    if (new Set(speeds).size < speeds.length) continue;
+
+    // Speed profile diversity: classify and prefer different profiles based on seed
+    const sorted = [...speeds].sort((a, b) => a - b);
+    const range = sorted[sorted.length - 1] - sorted[0];
+    const isUniform = range <= 4;
+    const isPolarized = !isUniform && (sorted[sorted.length - 1] > sorted[0] * 3);
+    const profile = isUniform ? 'uniform' : isPolarized ? 'polarized' : 'graduated';
+    const preferredProfiles = ['polarized', 'graduated', 'uniform'];
+    const preferred = preferredProfiles[seed % preferredProfiles.length];
+    if (profile !== preferred && attempt < maxRetries * 0.6) continue;
 
     const people = selectedPeople.map((p, i) => ({
       id: `person_${i}`,

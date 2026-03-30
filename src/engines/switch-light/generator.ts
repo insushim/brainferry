@@ -86,14 +86,16 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
     const variant = getVariant(difficulty, rng);
     const size = getSize(difficulty);
     const switchCount = size;
     const lightCount = size;
 
-    // Generate random connection matrix
-    const density = 0.3 + difficulty * 0.05;
+    // Generate random connection matrix with seed-varied density
+    const densityOptions = [0.25, 0.35, 0.45, 0.55];
+    const baseDensity = densityOptions[seed % densityOptions.length];
+    const density = baseDensity + difficulty * 0.03;
     const connections: boolean[][] = [];
 
     for (let sw = 0; sw < switchCount; sw++) {
@@ -194,6 +196,7 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
     }
 
     if (solutionSwitches.size === 0) continue;
+    if (solutionSwitches.size < 2) continue;
 
     // Calculate initial state
     const initialState = [...goalState];

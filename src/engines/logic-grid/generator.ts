@@ -51,8 +51,11 @@ function getVariant(difficulty: number, rng: SeededRandom): LogicVariant {
   return rng.pick(['liar', 'conditional']);
 }
 
-function getGridSize(difficulty: number): number {
-  if (difficulty <= 3) return 3;
+function getGridSize(difficulty: number, seed: number): number {
+  if (difficulty <= 3) {
+    const options = [3, 4];
+    return options[seed % options.length];
+  }
   if (difficulty <= 6) return 4;
   return 5;
 }
@@ -96,13 +99,18 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
     const variant = getVariant(difficulty, rng);
-    const gridSize = getGridSize(difficulty);
+    const gridSize = getGridSize(difficulty, seed);
     const catCount = getCategoryCount(difficulty);
 
-    // Always start with people as primary category
+    // Deterministic category rotation
+    const availableCats = CATEGORY_TEMPLATES.slice(1);
+    const catStartIdx = seed % availableCats.length;
+    const selectedExtraCats = Array.from({ length: catCount - 1 }, (_, i) =>
+      availableCats[(catStartIdx + i) % availableCats.length]
+    );
     const selectedCatTemplates = [
       CATEGORY_TEMPLATES[0], // person always first
-      ...rng.pickN(CATEGORY_TEMPLATES.slice(1), catCount - 1),
+      ...selectedExtraCats,
     ];
 
     const categories = selectedCatTemplates.map(t => ({

@@ -92,17 +92,20 @@ function getVariant(difficulty: number, rng: SeededRandom): SortVariant {
   return rng.pick(['blind', 'multi-target']);
 }
 
-function getItemCount(difficulty: number): number {
-  if (difficulty <= 2) return 4;
+function getItemCount(difficulty: number, seed: number): number {
+  if (difficulty <= 1) return [3, 4][seed % 2];
+  if (difficulty <= 2) return [4, 5][seed % 2];
   if (difficulty <= 4) return 5;
   if (difficulty <= 6) return 6;
   if (difficulty <= 8) return 7;
   return 8;
 }
 
-function getAllowedOps(difficulty: number, rng: SeededRandom): ('flip' | 'swap' | 'rotate')[] {
-  if (difficulty <= 2) return ['swap'];
-  if (difficulty <= 4) return rng.pick([['swap', 'flip'] as const, ['swap', 'rotate'] as const]).slice() as ('flip' | 'swap' | 'rotate')[];
+function getAllowedOps(difficulty: number, rng: SeededRandom, seed: number): ('flip' | 'swap' | 'rotate')[] {
+  const OP_SETS_LOW: ('flip' | 'swap' | 'rotate')[][] = [['swap'], ['flip'], ['rotate']];
+  if (difficulty <= 2) return [...OP_SETS_LOW[seed % OP_SETS_LOW.length]];
+  const OP_SETS_MID: ('flip' | 'swap' | 'rotate')[][] = [['swap', 'flip'], ['swap', 'rotate'], ['flip', 'rotate']];
+  if (difficulty <= 4) return [...OP_SETS_MID[seed % OP_SETS_MID.length]];
   if (difficulty <= 6) return ['flip', 'swap'];
   if (difficulty <= 8) return rng.pick([
     ['flip', 'rotate'] as const,
@@ -118,10 +121,10 @@ export function generateSequenceSort(difficulty: number, seed: number): Sequence
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
     const variant = getVariant(difficulty, rng);
-    const count = getItemCount(difficulty);
-    const ops = getAllowedOps(difficulty, rng);
+    const count = getItemCount(difficulty, seed);
+    const ops = getAllowedOps(difficulty, rng, seed);
 
     const goalOrder = Array.from({ length: count }, (_, i) => i + 1);
     const initialOrder = rng.shuffle(goalOrder);
@@ -172,6 +175,7 @@ export function generateSequenceSort(difficulty: number, seed: number): Sequence
 
     const result = solveSequenceSort(puzzle);
     if (!result.solvable) continue;
+    if (result.moves.length < 2) continue;
 
     if (difficulty <= 3 && result.moves.length > 8) continue;
     if (difficulty >= 7 && result.moves.length < 3) continue;

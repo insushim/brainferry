@@ -85,16 +85,22 @@ const THEMES: BodyguardTheme[] = [
   },
 ];
 
-function getVariant(difficulty: number, rng: SeededRandom): BodyguardVariant {
-  if (difficulty <= 2) return 'basic';
+function getVariant(difficulty: number, seed: number, rng: SeededRandom): BodyguardVariant {
+  if (difficulty <= 2) {
+    const variants: BodyguardVariant[] = ['basic', 'exclusive'];
+    return variants[seed % variants.length];
+  }
   if (difficulty <= 4) return rng.pick(['basic', 'exclusive']);
   if (difficulty <= 6) return rng.pick(['exclusive', 'hierarchy']);
   if (difficulty <= 8) return rng.pick(['hierarchy', 'exclusive']);
   return rng.pick(['hierarchy', 'exclusive', 'basic']);
 }
 
-function getPairCount(difficulty: number): number {
-  if (difficulty <= 3) return 2;
+function getPairCount(difficulty: number, seed: number): number {
+  if (difficulty <= 3) {
+    const options = [2, 3];
+    return options[seed % options.length];
+  }
   if (difficulty <= 6) return 3;
   return 4;
 }
@@ -104,10 +110,10 @@ export function generateBodyguard(difficulty: number, seed: number): BodyguardPu
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
-    const variant = getVariant(difficulty, rng);
-    const pairCount = getPairCount(difficulty);
-    const boatCapacity = pairCount <= 2 ? 2 : (difficulty >= 8 ? 2 : 3);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
+    const variant = getVariant(difficulty, seed, rng);
+    const pairCount = getPairCount(difficulty, seed);
+    const boatCapacity = pairCount <= 2 ? [2, 3][seed % 2] : (difficulty >= 8 ? 2 : 3);
 
     const selectedPairs = theme.pairs.slice(0, pairCount).map((p, i) => ({
       protector: { id: `protector_${i}`, name: p.protector.name, emoji: p.protector.emoji },
@@ -135,13 +141,18 @@ export function generateBodyguard(difficulty: number, seed: number): BodyguardPu
     };
 
     // Variant-specific setup
-    if (variant === 'exclusive' && pairCount >= 3) { // 3쌍일 때만 적용
-      // Pick two protectors who can't be on the same bank (not randomly overlapping)
-      const idxA = 0;
-      const idxB = 1;
+    if (variant === 'exclusive' && pairCount >= 2) {
+      // Cycle through different exclusive pair combinations based on seed
+      const allPairIndices: [number, number][] = [];
+      for (let i = 0; i < pairCount; i++) {
+        for (let j = i + 1; j < pairCount; j++) {
+          allPairIndices.push([i, j]);
+        }
+      }
+      const chosen = allPairIndices[seed % allPairIndices.length];
       puzzle.exclusivePairs = [{
-        idA: selectedPairs[idxA].protector.id,
-        idB: selectedPairs[idxB].protector.id,
+        idA: selectedPairs[chosen[0]].protector.id,
+        idB: selectedPairs[chosen[1]].protector.id,
       }];
     }
 

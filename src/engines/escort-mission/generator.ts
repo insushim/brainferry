@@ -89,31 +89,37 @@ const THEMES: EscortTheme[] = [
   },
 ];
 
-function getVariant(difficulty: number, rng: SeededRandom): EscortVariant {
-  if (difficulty <= 1) return 'basic';
+function getVariant(difficulty: number, seed: number, rng: SeededRandom): EscortVariant {
+  if (difficulty <= 2) {
+    const variants: EscortVariant[] = ['basic', 'basic', 'vip-escort'];
+    return variants[seed % variants.length];
+  }
   if (difficulty <= 3) return rng.pick(['basic', 'vip-escort']);
   if (difficulty <= 5) return rng.pick(['vip-escort', 'traitor']);
   if (difficulty <= 7) return rng.pick(['traitor', 'three-groups']);
   return rng.pick(['three-groups', 'traitor']); // 최고난이도에서는 복잡한 변형 위주
 }
 
-function getGroupCounts(difficulty: number, variant: EscortVariant): { a: number; b: number; c?: number } {
+function getGroupCounts(difficulty: number, variant: EscortVariant, seed: number): { a: number; b: number; c?: number } {
   if (variant === 'three-groups') {
     if (difficulty <= 7) return { a: 2, b: 2, c: 2 };
     return { a: 3, b: 3, c: 3 };
   }
-  if (difficulty <= 2) return { a: 2, b: 2 };
+  if (difficulty <= 2) {
+    const options = [{ a: 2, b: 2 }, { a: 2, b: 3 }, { a: 3, b: 2 }];
+    return options[seed % options.length];
+  }
   if (difficulty <= 4) return { a: 3, b: 3 };
   if (difficulty <= 6) return { a: 3, b: 4 }; // 비대칭으로 난이도 증가
   if (difficulty <= 8) return { a: 4, b: 4 };
   return { a: 5, b: 5 }; // 최고 난이도
 }
 
-function getBoatCapacity(difficulty: number, variant: EscortVariant): number {
+function getBoatCapacity(difficulty: number, variant: EscortVariant, seed: number): number {
   if (variant === 'three-groups') {
     return difficulty <= 7 ? 3 : 2; // 높은 난이도에서는 보트 용량 감소
   }
-  if (difficulty <= 2) return 3;
+  if (difficulty <= 2) return [2, 3][seed % 2];
   if (difficulty <= 5) return 2;
   return 2; // 일관성 유지
 }
@@ -123,10 +129,10 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
-    const variant = getVariant(difficulty, rng);
-    const counts = getGroupCounts(difficulty, variant);
-    const cap = getBoatCapacity(difficulty, variant);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
+    const variant = getVariant(difficulty, seed, rng);
+    const counts = getGroupCounts(difficulty, variant, seed);
+    const cap = getBoatCapacity(difficulty, variant, seed);
     const driverRequired = difficulty >= 2; // 더 일찍 제약 추가
 
     const puzzle: EscortPuzzle = {

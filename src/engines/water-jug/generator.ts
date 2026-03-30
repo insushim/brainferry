@@ -71,6 +71,12 @@ const TWO_JUG_CONFIGS: { caps: [number, number]; targets: number[] }[] = [
   { caps: [3, 8], targets: [1, 2, 4, 5, 6, 7] },
   { caps: [4, 9], targets: [1, 2, 3, 5, 6, 7, 8] },
   { caps: [5, 11], targets: [1, 2, 3, 4, 6, 7, 8, 9] },
+  { caps: [4, 11], targets: [1, 2, 3, 5, 6, 7] },
+  { caps: [3, 10], targets: [1, 2, 4, 5, 7, 8, 9] },
+  { caps: [5, 9], targets: [1, 2, 3, 4, 6, 7, 8] },
+  { caps: [7, 11], targets: [1, 2, 3, 4, 5, 6, 8, 9, 10] },
+  { caps: [2, 5], targets: [1, 3, 4] },
+  { caps: [2, 7], targets: [1, 3, 4, 5, 6] },
 ];
 
 const THREE_JUG_CONFIGS: { caps: [number, number, number]; targets: number[] }[] = [
@@ -94,29 +100,29 @@ export function generateWaterJug(difficulty: number, seed: number): WaterJugPuzz
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
+    const theme = THEMES[(seed % THEMES.length + attempt) % THEMES.length];
     const variant = getVariant(difficulty, rng);
 
     let jugs: WaterJugPuzzle['jugs'];
     let target: number;
 
     if (variant === 'basic-2' || variant === 'leaky') {
-      const config = rng.pick(TWO_JUG_CONFIGS);
+      const config = TWO_JUG_CONFIGS[(seed % TWO_JUG_CONFIGS.length + attempt) % TWO_JUG_CONFIGS.length];
       jugs = config.caps.map((cap, i) => ({ id: `jug_${i}`, capacity: cap }));
-      target = rng.pick(config.targets);
+      target = config.targets[(seed % config.targets.length + attempt) % config.targets.length];
     } else if (variant === 'basic-3') {
-      const config = rng.pick(THREE_JUG_CONFIGS);
+      const config = THREE_JUG_CONFIGS[(seed % THREE_JUG_CONFIGS.length + attempt) % THREE_JUG_CONFIGS.length];
       jugs = config.caps.map((cap, i) => ({ id: `jug_${i}`, capacity: cap }));
-      target = rng.pick(config.targets);
+      target = config.targets[(seed % config.targets.length + attempt) % config.targets.length];
     } else {
       // mixing: two jugs for two colors
-      const config = rng.pick(TWO_JUG_CONFIGS);
+      const config = TWO_JUG_CONFIGS[(seed % TWO_JUG_CONFIGS.length + attempt) % TWO_JUG_CONFIGS.length];
       jugs = [
         { id: 'jug_0', capacity: config.caps[0], color: 'red' },
         { id: 'jug_1', capacity: config.caps[1], color: 'blue' },
         { id: 'jug_2', capacity: config.caps[0] + config.caps[1], color: undefined }, // mixing container
       ];
-      target = rng.pick(config.targets);
+      target = config.targets[(seed % config.targets.length + attempt) % config.targets.length];
     }
 
     const targetJug = difficulty >= 5 ? rng.pick(jugs).id : undefined;
@@ -150,6 +156,7 @@ export function generateWaterJug(difficulty: number, seed: number): WaterJugPuzz
 
     const result = solveWaterJug(puzzle);
     if (!result.solvable) continue;
+    if (result.moves.length < 3) continue;
 
     const steps = result.moves.length;
     if (difficulty <= 3 && steps > 8) continue;
