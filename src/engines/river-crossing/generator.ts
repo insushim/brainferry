@@ -126,13 +126,13 @@ function classifyTopology(rules: PredationRule[]): TopologyType {
 }
 
 // Topology priority per seed slot — forces structural variety across puzzles
+// 'single' excluded: 1-rule puzzles are trivially identical regardless of theme
 const TOPOLOGY_PRIORITY: TopologyType[][] = [
-  ['fork', 'convergent', 'web', 'disjoint', 'chain', 'single'],
-  ['chain', 'web', 'fork', 'single', 'convergent', 'disjoint'],
-  ['convergent', 'disjoint', 'chain', 'fork', 'web', 'single'],
-  ['single', 'fork', 'convergent', 'chain', 'disjoint', 'web'],
-  ['disjoint', 'chain', 'web', 'convergent', 'fork', 'single'],
-  ['web', 'single', 'disjoint', 'fork', 'chain', 'convergent'],
+  ['fork', 'convergent', 'web', 'disjoint', 'chain'],
+  ['chain', 'web', 'fork', 'convergent', 'disjoint'],
+  ['convergent', 'disjoint', 'chain', 'fork', 'web'],
+  ['disjoint', 'fork', 'convergent', 'web', 'chain'],
+  ['web', 'chain', 'disjoint', 'fork', 'convergent'],
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
@@ -144,7 +144,7 @@ function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
 }
 
 function getEntityCount(difficulty: number, rng: SeededRandom): number {
-  if (difficulty <= 1) return rng.pick([2, 3, 3, 4]);
+  if (difficulty <= 1) return rng.pick([3, 3, 4, 4]);
   if (difficulty <= 3) return rng.pick([3, 3, 4]);
   if (difficulty <= 6) return rng.pick([3, 4, 4, 5]);
   if (difficulty <= 8) return rng.pick([4, 5, 5]);
@@ -188,7 +188,9 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
       r => selectedIds.has(r.predator) && selectedIds.has(r.prey)
     );
 
-    if (applicableRules.length === 0) continue;
+    // Require 2+ rules: a single-rule puzzle is trivially solvable
+    // (just separate the one dangerous pair) and feels identical every time
+    if (applicableRules.length < 2) continue;
 
     // Topology-based structural diversity:
     // In early attempts, only accept if topology matches preference.
