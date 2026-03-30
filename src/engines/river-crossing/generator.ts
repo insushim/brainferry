@@ -91,8 +91,52 @@ const ENTITY_WEIGHTS: Record<string, number> = {
   knight: 3, lion: 3, zebra: 3, monkey: 2, banana_l: 1, snake: 2, frog: 1, crocodile: 3, gem: 1, troll: 3,
 };
 
+// ── Constraint topology classification ──
+// Ensures structurally different puzzles, not just name swaps
+
+type TopologyType = 'single' | 'chain' | 'fork' | 'convergent' | 'disjoint' | 'web';
+
+function classifyTopology(rules: PredationRule[]): TopologyType {
+  if (rules.length <= 1) return 'single';
+
+  const outDeg = new Map<string, number>();
+  const inDeg = new Map<string, number>();
+  for (const r of rules) {
+    outDeg.set(r.predator, (outDeg.get(r.predator) ?? 0) + 1);
+    inDeg.set(r.prey, (inDeg.get(r.prey) ?? 0) + 1);
+  }
+
+  const allNodes = new Set([...rules.map(r => r.predator), ...rules.map(r => r.prey)]);
+  const maxOut = Math.max(...outDeg.values());
+  const maxIn = Math.max(...inDeg.values());
+
+  if (rules.length === 2) {
+    // 4 distinct nodes = two independent pairs
+    if (allNodes.size === 4) return 'disjoint';
+    if (maxOut >= 2) return 'fork';
+    if (maxIn >= 2) return 'convergent';
+    return 'chain';
+  }
+
+  // 3+ rules
+  if (maxOut >= 2 && maxIn >= 2) return 'web';
+  if (maxOut >= 2) return 'fork';
+  if (maxIn >= 2) return 'convergent';
+  return 'chain';
+}
+
+// Topology priority per seed slot — forces structural variety across puzzles
+const TOPOLOGY_PRIORITY: TopologyType[][] = [
+  ['fork', 'convergent', 'web', 'disjoint', 'chain', 'single'],
+  ['chain', 'web', 'fork', 'single', 'convergent', 'disjoint'],
+  ['convergent', 'disjoint', 'chain', 'fork', 'web', 'single'],
+  ['single', 'fork', 'convergent', 'chain', 'disjoint', 'web'],
+  ['disjoint', 'chain', 'web', 'convergent', 'fork', 'single'],
+  ['web', 'single', 'disjoint', 'fork', 'chain', 'convergent'],
+];
+
 function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
-  if (difficulty <= 1) return rng.pick(['basic', 'basic', 'basic', 'weight-limit', 'weight-limit']);
+  if (difficulty <= 1) return rng.pick(['basic', 'basic', 'weight-limit', 'weight-limit']);
   if (difficulty <= 3) return rng.pick(['basic', 'weight-limit', 'weight-limit']);
   if (difficulty <= 5) return rng.pick(['weight-limit', 'one-way']);
   if (difficulty <= 7) return rng.pick(['one-way', 'two-boats']);
@@ -100,7 +144,7 @@ function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
 }
 
 function getEntityCount(difficulty: number, rng: SeededRandom): number {
-  if (difficulty <= 1) return rng.pick([2, 3, 3]);
+  if (difficulty <= 1) return rng.pick([2, 3, 3, 4]);
   if (difficulty <= 3) return rng.pick([3, 3, 4]);
   if (difficulty <= 6) return rng.pick([3, 4, 4, 5]);
   if (difficulty <= 8) return rng.pick([4, 5, 5]);
@@ -125,9 +169,15 @@ function getVariantDescription(variant: RiverVariant, puzzle: Partial<RiverCross
 export function generateRiverCrossing(difficulty: number, seed: number): RiverCrossingPuzzle {
   const maxRetries = 50;
 
+  // Deterministic theme cycling — different seeds → different themes
+  const themeOrder = seed % THEMES.length;
+  // Topology preference — different seeds → different constraint structures
+  const topologyPref = TOPOLOGY_PRIORITY[seed % TOPOLOGY_PRIORITY.length];
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const rng = new SeededRandom(seed + attempt);
-    const theme = rng.pick(THEMES);
+    // Cycle themes: first try preferred theme, then shift on retries
+    const theme = THEMES[(themeOrder + attempt) % THEMES.length];
     const variant = getVariant(difficulty, rng);
     const entityCount = getEntityCount(difficulty, rng);
 
@@ -140,13 +190,24 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
 
     if (applicableRules.length === 0) continue;
 
+    // Topology-based structural diversity:
+    // In early attempts, only accept if topology matches preference.
+    // After enough retries, accept any topology to guarantee termination.
+    const topology = classifyTopology(applicableRules);
+    const topologyRank = topologyPref.indexOf(topology);
+    // First 60% of retries: only accept top-2 preferred topologies
+    // Next 20%: accept top-4
+    // Last 20%: accept anything
+    if (attempt < maxRetries * 0.6 && topologyRank > 1) continue;
+    if (attempt < maxRetries * 0.8 && topologyRank > 3) continue;
+
     // Variant-specific configuration — capacity varies by entity count
     let boatCapacity: number;
     if (variant === 'basic' || variant === 'one-way') {
       if (entityCount <= 2) {
         boatCapacity = 1;
       } else if (entityCount === 3 && difficulty <= 3) {
-        boatCapacity = rng.pick([1, 1, 2]);
+        boatCapacity = rng.pick([1, 2]);
       } else if (entityCount >= 4 && difficulty <= 5) {
         boatCapacity = rng.pick([1, 2]);
       } else {
