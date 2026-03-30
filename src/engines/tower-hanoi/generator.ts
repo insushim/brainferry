@@ -63,10 +63,11 @@ const THEMES: HanoiTheme[] = [
 
 function getVariant(difficulty: number, seed: number, rng: SeededRandom): HanoiVariant {
   if (difficulty <= 2) {
-    const variants: HanoiVariant[] = ['classic', 'classic', 'color-restrict'];
+    // Variants from difficulty 1 to transform Hanoi from mechanical to strategic
+    const variants: HanoiVariant[] = ['classic', 'color-restrict', 'detour'];
     return variants[seed % variants.length];
   }
-  if (difficulty <= 4) return rng.pick(['classic', 'color-restrict']);
+  if (difficulty <= 4) return rng.pick(['classic', 'color-restrict', 'detour']);
   if (difficulty <= 6) return rng.pick(['color-restrict', 'detour']);
   if (difficulty <= 8) return rng.pick(['detour', 'dual-tower']);
   return rng.pick(['dual-tower', 'color-restrict', 'detour']);
@@ -78,16 +79,14 @@ function getDiscCount(difficulty: number, variant: HanoiVariant, seed: number): 
     return 6; // 2 sets of 3
   }
   if (variant === 'detour' || variant === 'color-restrict') {
-    // These variants are harder, so fewer discs
-    if (difficulty <= 4) return 3;
+    // These variants are harder, but still min 4 discs
+    if (difficulty <= 4) return 4;
     if (difficulty <= 6) return 4;
     return 5;
   }
-  if (difficulty <= 2) {
-    const options = [3, 4];
-    return options[seed % options.length];
-  }
-  if (difficulty <= 4) return 4;
+  // Classic: min 4 discs (3 discs = only 7 moves, too trivial)
+  if (difficulty <= 2) return 4;
+  if (difficulty <= 4) return 5;
   if (difficulty <= 6) return 5;
   if (difficulty <= 8) return 6;
   return 7;
@@ -203,6 +202,9 @@ export function generateHanoi(difficulty: number, seed: number): HanoiPuzzle {
     const result = solveHanoi(puzzle);
     if (!result.solvable) continue;
 
+    // Classic variant must have at least 15 moves (4+ discs)
+    if (variant === 'classic' && result.moves.length < 15) continue;
+
     // Skip if solution is too long for BFS comfort
     if (result.moves.length > 100) continue;
 
@@ -244,6 +246,8 @@ export function generateHanoi(difficulty: number, seed: number): HanoiPuzzle {
 
     puzzle.hints = [
       `최소 ${result.moves.length}번 이동이 필요합니다.`,
+      '가장 큰 원반을 목표 기둥으로 옮기려면, 나머지를 먼저 보조 기둥에 옮겨야 합니다.',
+      `n개 원반 = 2^n - 1 번의 이동이 필요합니다.`,
     ];
     if (result.moves.length > 0) {
       puzzle.hints.push(`첫 이동: 원반 ${result.moves[0].disc}을 기둥 ${result.moves[0].from + 1}에서 기둥 ${result.moves[0].to + 1}(으)로`);
@@ -264,33 +268,45 @@ export function generateHanoi(difficulty: number, seed: number): HanoiPuzzle {
     return puzzle;
   }
 
-  // Fallback: standard 3-disc
-  const discs = [3, 2, 1];
+  // Fallback: standard 4-disc (15 moves)
+  const discs = [4, 3, 2, 1];
   return {
     seed,
     difficulty,
     category: 'tower-hanoi',
     variant: 'classic',
-    optimalSteps: 7,
-    story: '🗼3개의 원반을 마지막 기둥으로 옮기세요.',
+    optimalSteps: 15,
+    story: '🗼4개의 원반을 마지막 기둥으로 옮기세요.',
     rules: [
       '한 번에 하나의 원반만 이동할 수 있습니다.',
       '큰 원반을 작은 원반 위에 놓을 수 없습니다.',
       '모든 원반을 마지막 기둥으로 옮기세요.',
     ],
-    hints: ['최소 7번 이동이 필요합니다.', '가장 작은 원반을 먼저 옮기세요.'],
-    discCount: 3,
+    hints: [
+      '최소 15번 이동이 필요합니다.',
+      '가장 큰 원반을 목표 기둥으로 옮기려면, 나머지를 먼저 보조 기둥에 옮겨야 합니다.',
+      'n개 원반 = 2^n - 1 번의 이동이 필요합니다.',
+    ],
+    discCount: 4,
     pegCount: 3,
     initialState: [discs, [], []],
     goalState: [[], [], [...discs]],
     solution: [
-      { from: 0, to: 2, disc: 1 },
-      { from: 0, to: 1, disc: 2 },
-      { from: 2, to: 1, disc: 1 },
-      { from: 0, to: 2, disc: 3 },
-      { from: 1, to: 0, disc: 1 },
-      { from: 1, to: 2, disc: 2 },
-      { from: 0, to: 2, disc: 1 },
+      { from: 0, to: 1, disc: 1 },
+      { from: 0, to: 2, disc: 2 },
+      { from: 1, to: 2, disc: 1 },
+      { from: 0, to: 1, disc: 3 },
+      { from: 2, to: 0, disc: 1 },
+      { from: 2, to: 1, disc: 2 },
+      { from: 0, to: 1, disc: 1 },
+      { from: 0, to: 2, disc: 4 },
+      { from: 1, to: 2, disc: 1 },
+      { from: 1, to: 0, disc: 2 },
+      { from: 2, to: 0, disc: 1 },
+      { from: 1, to: 2, disc: 3 },
+      { from: 0, to: 1, disc: 1 },
+      { from: 0, to: 2, disc: 2 },
+      { from: 1, to: 2, disc: 1 },
     ],
   };
 }

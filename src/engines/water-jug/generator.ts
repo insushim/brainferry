@@ -88,9 +88,9 @@ const THREE_JUG_CONFIGS: { caps: [number, number, number]; targets: number[] }[]
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): JugVariant {
-  if (difficulty <= 2) return 'basic-2';
-  if (difficulty <= 4) return rng.pick(['basic-2', 'basic-3']);
-  if (difficulty <= 6) return rng.pick(['basic-3', 'leaky']);
+  if (difficulty <= 2) return rng.pick(['basic-2', 'basic-3']); // 3-jug from difficulty 1
+  if (difficulty <= 4) return rng.pick(['basic-3', 'leaky']);
+  if (difficulty <= 6) return rng.pick(['leaky', 'mixing']);
   if (difficulty <= 8) return rng.pick(['leaky', 'mixing']);
   return 'mixing';  // 9-10은 항상 가장 복잡한 mixing
 }
@@ -156,7 +156,7 @@ export function generateWaterJug(difficulty: number, seed: number): WaterJugPuzz
 
     const result = solveWaterJug(puzzle);
     if (!result.solvable) continue;
-    if (result.moves.length < 3) continue;
+    if (result.moves.length < 5) continue; // 5-step minimum ensures actual strategy needed
 
     const steps = result.moves.length;
     if (difficulty <= 3 && steps > 8) continue;
@@ -194,6 +194,8 @@ export function generateWaterJug(difficulty: number, seed: number): WaterJugPuzz
 
     puzzle.hints = [
       `최소 ${steps}번의 동작이 필요합니다.`,
+      '작은 물통으로 큰 물통의 남은 공간을 측정하세요.',
+      '목표량 = 큰 물통 - 작은 물통의 배수 관계를 찾으세요.',
     ];
     if (result.moves.length > 0) {
       const firstMove = result.moves[0];

@@ -75,26 +75,32 @@ function getVariant(difficulty: number, seed: number, rng: SeededRandom): Balanc
     const variants: BalanceVariant[] = ['basic', 'basic', 'unknown-weight'];
     return variants[seed % variants.length];
   }
-  if (difficulty <= 5) return rng.pick(['basic', 'unknown-weight']);
-  if (difficulty <= 7) return rng.pick(['unknown-weight', 'broken-scale']);
+  if (difficulty <= 4) return rng.pick(['basic', 'unknown-weight']);
+  if (difficulty <= 6) return rng.pick(['unknown-weight', 'multiple-fake']); // multiple-fake from 5+
+  if (difficulty <= 8) return rng.pick(['multiple-fake', 'broken-scale']);
   return rng.pick(['multiple-fake', 'broken-scale']);
 }
 
 function getCoinCount(difficulty: number, variant: BalanceVariant, seed: number): number {
   if (variant === 'multiple-fake') {
     // Fewer coins for multi-fake (harder to solve)
-    if (difficulty <= 6) return 6;
-    if (difficulty <= 8) return 8;
-    return 9;
+    if (difficulty <= 6) return 8;
+    if (difficulty <= 8) return 9;
+    return 10;
   }
   if (difficulty <= 3) {
-    const options = [6, 8, 9];
+    const options = [8, 9, 10]; // 6 is too easy → min 8
     return options[seed % options.length];
   }
-  if (difficulty <= 4) return 9;
-  if (difficulty <= 6) return 10;
-  if (difficulty <= 8) return 11;
-  return 12;
+  if (difficulty <= 6) {
+    const options = [10, 11, 12];
+    return options[seed % options.length];
+  }
+  if (difficulty <= 8) {
+    const options = [12, 13, 15];
+    return options[seed % options.length];
+  }
+  return 15;
 }
 
 function maxWeighingsForCoins(n: number, variant: BalanceVariant): number {
@@ -158,6 +164,8 @@ export function generateBalanceScale(difficulty: number, seed: number): BalanceS
 
     const result = solveBalanceScale(puzzle);
     if (!result.solvable) continue;
+    // Reject puzzles solvable in fewer than 3 weighings - too trivial
+    if (result.maxWeighingsNeeded < 3) continue;
 
     puzzle.solution = result.strategy;
     puzzle.optimalSteps = result.maxWeighingsNeeded;
@@ -192,6 +200,8 @@ export function generateBalanceScale(difficulty: number, seed: number): BalanceS
 
     puzzle.hints = [
       `${maxWeighings}번의 측정으로 충분합니다.`,
+      '각 측정으로 가능성을 1/3로 줄일 수 있습니다.',
+      `N개 동전은 최소 ceil(log₃(2N)) 번의 측정이 필요합니다.`,
       `${theme.itemName}을 3등분하여 측정하면 효율적입니다.`,
       '균형이면 저울 위의 동전은 모두 진짜입니다.',
     ];

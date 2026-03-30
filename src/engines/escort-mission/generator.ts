@@ -96,8 +96,8 @@ function getVariant(difficulty: number, seed: number, rng: SeededRandom): Escort
   }
   if (difficulty <= 3) return rng.pick(['basic', 'vip-escort']);
   if (difficulty <= 5) return rng.pick(['vip-escort', 'traitor']);
-  if (difficulty <= 7) return rng.pick(['traitor', 'three-groups']);
-  return rng.pick(['three-groups', 'traitor']); // 최고난이도에서는 복잡한 변형 위주
+  if (difficulty <= 7) return rng.pick(['traitor', 'traitor', 'three-groups']); // traitor/three-groups common at 7+
+  return rng.pick(['three-groups', 'three-groups', 'traitor']); // 최고난이도에서는 복잡한 변형 위주
 }
 
 function getGroupCounts(difficulty: number, variant: EscortVariant, seed: number): { a: number; b: number; c?: number } {
@@ -109,8 +109,16 @@ function getGroupCounts(difficulty: number, variant: EscortVariant, seed: number
     const options = [{ a: 2, b: 2 }, { a: 2, b: 3 }, { a: 3, b: 2 }];
     return options[seed % options.length];
   }
-  if (difficulty <= 4) return { a: 3, b: 3 };
-  if (difficulty <= 6) return { a: 3, b: 4 }; // 비대칭으로 난이도 증가
+  if (difficulty <= 4) {
+    // At least one group should be 3+
+    const options = [{ a: 3, b: 3 }, { a: 3, b: 4 }, { a: 4, b: 3 }];
+    return options[seed % options.length];
+  }
+  if (difficulty <= 6) {
+    // Groups should total 7+
+    const options = [{ a: 3, b: 4 }, { a: 4, b: 3 }, { a: 4, b: 4 }];
+    return options[seed % options.length];
+  }
   if (difficulty <= 8) return { a: 4, b: 4 };
   return { a: 5, b: 5 }; // 최고 난이도
 }
@@ -169,6 +177,12 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
     const result = solveEscort(puzzle);
     if (!result.solvable) continue;
 
+    // Enforce minimum solution steps to ensure real cognitive challenge
+    const minSteps: Record<number, number> = {
+      1: 5, 2: 5, 3: 7, 4: 7, 5: 9, 6: 11, 7: 11, 8: 13, 9: 13, 10: 15,
+    };
+    if (result.moves.length < (minSteps[difficulty] ?? 5)) continue;
+
     puzzle.solution = result.moves;
     puzzle.optimalSteps = result.moves.length;
     puzzle.story = theme.storyTemplate(puzzle);
@@ -224,6 +238,9 @@ export function generateEscort(difficulty: number, seed: number): EscortPuzzle {
     }
     if (result.moves.length > 3) {
       puzzle.hints.push('되돌아올 때 최소 인원만 보내세요.');
+    }
+    if (result.moves.length >= 7) {
+      puzzle.hints.push(`최소 ${result.moves.length}번의 이동이 필요합니다. 각 이동에서 최대 인원을 활용하세요.`);
     }
 
     return puzzle;

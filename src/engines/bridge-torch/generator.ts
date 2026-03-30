@@ -87,9 +87,9 @@ function getVariant(difficulty: number, rng: SeededRandom): BridgeVariant {
 }
 
 function getPeopleCount(difficulty: number): number {
-  if (difficulty <= 2) return 3;
+  if (difficulty <= 2) return 4;  // 3명은 너무 쉬움 → 최소 4명
   if (difficulty <= 4) return 4;
-  if (difficulty <= 6) return 5;  // 5-6에서도 5명으로 증가
+  if (difficulty <= 6) return 5;
   if (difficulty <= 8) return 5;
   return 6;
 }
@@ -123,6 +123,9 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
     const preferredProfiles = ['polarized', 'graduated', 'uniform'];
     const preferred = preferredProfiles[seed % preferredProfiles.length];
     if (profile !== preferred && attempt < maxRetries * 0.6) continue;
+
+    // Ensure minimum 3x speed ratio for meaningful strategy
+    if (sorted[sorted.length - 1] < sorted[0] * 3) continue;
 
     const people = selectedPeople.map((p, i) => ({
       id: `person_${i}`,
@@ -168,7 +171,9 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
     if (!result.solvable) continue;
 
     const optimalTime = result.moves.reduce((sum, m) => sum + m.time, 0);
-    puzzle.timeLimit = optimalTime;
+    // Tighter time limits force optimization thinking
+    const overhead = difficulty <= 3 ? 1.3 : difficulty <= 6 ? 1.2 : 1.1;
+    puzzle.timeLimit = Math.ceil(optimalTime * overhead);
 
     if (variant === 'bridge-durability') {
       // Set durability to exactly the number of crossings in the solution
@@ -181,7 +186,7 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
       for (let i = 0; i < result.moves.length; i++) {
         totalTime += result.moves[i].time + i * (puzzle.batteryDrainRate ?? 0);
       }
-      puzzle.timeLimit = totalTime;
+      puzzle.timeLimit = Math.ceil(totalTime * overhead);
     }
 
     puzzle.solution = result.moves;
@@ -218,8 +223,9 @@ export function generateBridgeTorch(difficulty: number, seed: number): BridgeTor
 
     const sortedPeople = [...people].sort((a, b) => a.speed - b.speed);
     puzzle.hints = [
-      `최적 시간은 ${puzzle.timeLimit}분입니다.`,
-      `가장 빠른 사람(${sortedPeople[0].name}: ${sortedPeople[0].speed}분)이 횃불을 되가져오는 역할을 자주 합니다.`,
+      `제한 시간은 ${puzzle.timeLimit}분입니다.`,
+      '빠른 사람이 횃불을 돌려보내는 역할을 합니다.',
+      '느린 두 사람은 함께 건너는 것이 유리합니다.',
     ];
     if (variant === 'bridge-durability') {
       puzzle.hints.push(`다리 사용 횟수를 최소화하세요. 한 번에 2명씩 보내세요.`);

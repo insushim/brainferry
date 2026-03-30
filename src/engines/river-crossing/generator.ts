@@ -137,16 +137,16 @@ const TOPOLOGY_PRIORITY: TopologyType[][] = [
 
 function getVariant(difficulty: number, rng: SeededRandom): RiverVariant {
   if (difficulty <= 1) return rng.pick(['basic', 'basic', 'weight-limit', 'weight-limit']);
-  if (difficulty <= 3) return rng.pick(['basic', 'weight-limit', 'weight-limit']);
-  if (difficulty <= 5) return rng.pick(['weight-limit', 'one-way']);
+  if (difficulty <= 3) return rng.pick(['basic', 'weight-limit', 'one-way']);
+  if (difficulty <= 5) return rng.pick(['basic', 'weight-limit', 'one-way', 'two-boats']);
   if (difficulty <= 7) return rng.pick(['one-way', 'two-boats']);
   return rng.pick(['two-boats', 'island']);
 }
 
 function getEntityCount(difficulty: number, rng: SeededRandom): number {
   if (difficulty <= 1) return rng.pick([3, 3, 4, 4]);
-  if (difficulty <= 3) return rng.pick([3, 3, 4]);
-  if (difficulty <= 6) return rng.pick([3, 4, 4, 5]);
+  if (difficulty <= 3) return rng.pick([3, 4, 4]);
+  if (difficulty <= 6) return rng.pick([4, 4, 5, 5]);
   if (difficulty <= 8) return rng.pick([4, 5, 5]);
   return rng.pick([5, 6]);
 }
@@ -285,6 +285,12 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
     const result = solveRiverCrossing(puzzle);
     if (!result.solvable) continue;
 
+    // Enforce minimum solution steps to ensure real cognitive challenge
+    const minSteps: Record<number, number> = {
+      1: 5, 2: 5, 3: 7, 4: 7, 5: 9, 6: 9, 7: 11, 8: 11, 9: 13, 10: 15,
+    };
+    if (result.moves.length < (minSteps[difficulty] ?? 5)) continue;
+
     puzzle.solution = result.moves;
     puzzle.optimalSteps = result.moves.length;
 
@@ -357,6 +363,17 @@ export function generateRiverCrossing(difficulty: number, seed: number): RiverCr
     }
     if (result.moves.length > 2) {
       puzzle.hints.push(`핵심은 어떤 것을 되돌려 가져오는지입니다.`);
+    }
+
+    // Strategy-based hints based on constraint topology
+    if (topology === 'chain') {
+      puzzle.hints.push('중간 연결고리를 먼저 관리하세요.');
+    } else if (topology === 'fork') {
+      puzzle.hints.push('하나의 포식자가 여럿을 위협합니다. 포식자를 우선 격리하세요.');
+    } else if (topology === 'convergent') {
+      puzzle.hints.push('여러 포식자가 하나를 노립니다. 피식자를 먼저 안전하게 옮기세요.');
+    } else if (topology === 'web') {
+      puzzle.hints.push('복잡한 관계망입니다. 가장 많은 제약에 연결된 개체를 우선 처리하세요.');
     }
 
     return puzzle;

@@ -90,19 +90,30 @@ function getVariant(difficulty: number, seed: number, rng: SeededRandom): Bodygu
     const variants: BodyguardVariant[] = ['basic', 'exclusive'];
     return variants[seed % variants.length];
   }
-  if (difficulty <= 4) return rng.pick(['basic', 'exclusive']);
+  if (difficulty <= 4) {
+    const variants: BodyguardVariant[] = ['basic', 'exclusive', 'hierarchy'];
+    return variants[seed % variants.length];
+  }
   if (difficulty <= 6) return rng.pick(['exclusive', 'hierarchy']);
   if (difficulty <= 8) return rng.pick(['hierarchy', 'exclusive']);
   return rng.pick(['hierarchy', 'exclusive', 'basic']);
 }
 
 function getPairCount(difficulty: number, seed: number): number {
-  if (difficulty <= 3) {
+  if (difficulty <= 2) {
     const options = [2, 3];
     return options[seed % options.length];
   }
-  if (difficulty <= 6) return 3;
-  return 4;
+  if (difficulty <= 4) {
+    const options = [2, 3, 3];
+    return options[seed % options.length];
+  }
+  if (difficulty <= 6) {
+    const options = [3, 3, 4];
+    return options[seed % options.length];
+  }
+  const options = [3, 4, 4];
+  return options[seed % options.length];
 }
 
 export function generateBodyguard(difficulty: number, seed: number): BodyguardPuzzle {
@@ -173,6 +184,12 @@ export function generateBodyguard(difficulty: number, seed: number): BodyguardPu
     const result = solveBodyguard(puzzle);
     if (!result.solvable) continue;
 
+    // Enforce minimum solution steps to ensure real cognitive challenge
+    const minSteps: Record<number, number> = {
+      1: 5, 2: 5, 3: 7, 4: 7, 5: 9, 6: 9, 7: 11, 8: 11, 9: 13, 10: 15,
+    };
+    if (result.moves.length < (minSteps[difficulty] ?? 5)) continue;
+
     puzzle.solution = result.moves;
     puzzle.optimalSteps = result.moves.length;
     puzzle.story = theme.storyTemplate(pairCount, boatCapacity, variant, puzzle);
@@ -212,6 +229,8 @@ export function generateBodyguard(difficulty: number, seed: number): BodyguardPu
 
     puzzle.hints = [
       `최소 ${result.moves.length}번 이동이 필요합니다.`,
+      '보호자 없는 피보호자가 다른 보호자와 단둘이 있으면 안 됩니다.',
+      '보호 관계를 먼저 파악한 후 이동 계획을 세우세요.',
     ];
     if (result.moves.length > 0) {
       const firstPassengers = result.moves[0].passengers;

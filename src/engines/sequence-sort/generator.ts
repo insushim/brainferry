@@ -86,6 +86,10 @@ const OP_NAMES: Record<string, string> = {
 };
 
 function getVariant(difficulty: number, rng: SeededRandom): SortVariant {
+  if (difficulty <= 2) {
+    const variants: SortVariant[] = ['basic', 'basic', 'limited-ops'];
+    return variants[(rng.int(0, 999)) % variants.length];
+  }
   if (difficulty <= 3) return 'basic';
   if (difficulty <= 5) return rng.pick(['basic', 'limited-ops']);
   if (difficulty <= 7) return rng.pick(['limited-ops', 'blind']);
@@ -93,7 +97,7 @@ function getVariant(difficulty: number, rng: SeededRandom): SortVariant {
 }
 
 function getItemCount(difficulty: number, seed: number): number {
-  if (difficulty <= 1) return [3, 4][seed % 2];
+  if (difficulty <= 1) return [4, 5][seed % 2];
   if (difficulty <= 2) return [4, 5][seed % 2];
   if (difficulty <= 4) return 5;
   if (difficulty <= 6) return 6;
@@ -130,6 +134,13 @@ export function generateSequenceSort(difficulty: number, seed: number): Sequence
     const initialOrder = rng.shuffle(goalOrder);
 
     if (initialOrder.join(',') === goalOrder.join(',')) continue;
+
+    // Minimum inversion count = 3: ensure the permutation is sufficiently scrambled
+    let inversions = 0;
+    for (let i = 0; i < initialOrder.length; i++)
+      for (let j = i + 1; j < initialOrder.length; j++)
+        if (initialOrder[i] > initialOrder[j]) inversions++;
+    if (inversions < 3) continue;
 
     const items = goalOrder.map(v => ({
       id: `item_${v}`,
@@ -175,7 +186,7 @@ export function generateSequenceSort(difficulty: number, seed: number): Sequence
 
     const result = solveSequenceSort(puzzle);
     if (!result.solvable) continue;
-    if (result.moves.length < 2) continue;
+    if (result.moves.length < 3) continue;
 
     if (difficulty <= 3 && result.moves.length > 8) continue;
     if (difficulty >= 7 && result.moves.length < 3) continue;
@@ -218,6 +229,8 @@ export function generateSequenceSort(difficulty: number, seed: number): Sequence
 
     puzzle.hints = [
       `최소 ${result.moves.length}번의 동작이 필요합니다.`,
+      '현재 순서에서 어떤 요소가 가장 멀리 벗어나 있는지 찾으세요.',
+      '가장 적은 연산으로 목표에 도달하는 순서를 계획하세요.',
     ];
     if (result.moves.length > 0) {
       const first = result.moves[0];

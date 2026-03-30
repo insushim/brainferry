@@ -45,7 +45,11 @@ const CATEGORY_TEMPLATES = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): LogicVariant {
-  if (difficulty <= 3) return 'basic';
+  if (difficulty <= 2) return 'basic';
+  if (difficulty <= 4) {
+    const variants: LogicVariant[] = ['basic', 'basic', 'ordering'];
+    return variants[(rng.int(0, 999)) % variants.length];
+  }
   if (difficulty <= 5) return rng.pick(['basic', 'ordering']);
   if (difficulty <= 7) return rng.pick(['ordering', 'liar']);
   return rng.pick(['liar', 'conditional']);
@@ -346,6 +350,14 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
       }
     }
 
+    // Ensure minimum clue count scales with grid size
+    const minClueCount = gridSize + 1; // 3x3: 4, 4x4: 5, 5x5: 6
+    if (minimized.length < minClueCount) continue;
+
+    // Require at least 2 different clue types for real deductive reasoning
+    const clueTypes = new Set(minimized.map(c => c.type));
+    if (clueTypes.size < 2) continue;
+
     // For easier difficulties, add extra helpful clues
     if (difficulty <= 4) {
       const extraCount = Math.max(0, Math.floor((6 - difficulty) * 0.5));
@@ -394,6 +406,8 @@ export function generateLogicGrid(difficulty: number, seed: number): LogicGridPu
 
     puzzle.hints = [
       `총 ${minimized.length}개의 단서가 있습니다.`,
+      '확실한 단서부터 시작하여 가능성을 좁혀가세요.',
+      '한 행에 하나의 O만 가능합니다. 나머지는 X로 채우세요.',
     ];
 
     const directInFinal = minimized.filter(c => c.type === 'direct_match');

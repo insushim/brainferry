@@ -68,6 +68,10 @@ const THEMES: SwitchTheme[] = [
 ];
 
 function getVariant(difficulty: number, rng: SeededRandom): SwitchVariant {
+  if (difficulty <= 2) {
+    const variants: SwitchVariant[] = ['basic', 'basic', 'toggle-chain'];
+    return variants[(rng.int(0, 999)) % variants.length];
+  }
   if (difficulty <= 3) return 'basic';
   if (difficulty <= 5) return rng.pick(['basic', 'toggle-chain']);
   if (difficulty <= 7) return rng.pick(['toggle-chain', 'timer']);
@@ -75,8 +79,8 @@ function getVariant(difficulty: number, rng: SeededRandom): SwitchVariant {
 }
 
 function getSize(difficulty: number): number {
-  if (difficulty <= 2) return 3;
-  if (difficulty <= 4) return 4;
+  if (difficulty <= 2) return 4;
+  if (difficulty <= 4) return 5;
   if (difficulty <= 6) return 5;
   return 6;
 }
@@ -196,7 +200,7 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
     }
 
     if (solutionSwitches.size === 0) continue;
-    if (solutionSwitches.size < 2) continue;
+    if (solutionSwitches.size < 3) continue;
 
     // Calculate initial state
     const initialState = [...goalState];
@@ -310,6 +314,10 @@ export function generateSwitchLight(difficulty: number, seed: number): SwitchLig
     puzzle.hints = [
       `최소 ${result.solution.length}번의 조작이 필요합니다.`,
     ];
+
+    // Systems-thinking hints (for all variants)
+    puzzle.hints.push('각 스위치가 어떤 전등에 연결되어 있는지 먼저 파악하세요.');
+    puzzle.hints.push('연쇄 효과를 고려하여 스위치 순서를 계획하세요.');
 
     // Basic hint for all variants
     if (result.solution.length > 0 && variant !== 'sequence') {
